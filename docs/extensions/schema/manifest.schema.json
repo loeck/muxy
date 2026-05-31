@@ -1,0 +1,296 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://muxy.app/schema/manifest.schema.json",
+  "title": "Muxy Extension Manifest",
+  "description": "Mirror of the Swift ExtensionManifest loader in muxy-app/muxy. Source of truth is MuxyExtension.load/validate; this schema is the marketplace mirror, backed by an app contract test.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "version"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional pointer to this schema for editor autocomplete. Ignored by the app loader."
+    },
+    "name": {
+      "type": "string",
+      "description": "Extension identifier. Must equal the directory name. ASCII letters, digits, dash, underscore, dot; no leading dot.",
+      "pattern": "^(?!\\.)[A-Za-z0-9._-]+$",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "version": {
+      "type": "string",
+      "description": "Semver. A published name@version is immutable; bump for any change.",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z-.]+)?(?:\\+[0-9A-Za-z-.]+)?$"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 200
+    },
+    "background": {
+      "type": "string",
+      "description": "Relative path to a background JS file inside the extension directory."
+    },
+    "events": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "permissions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/permission" }
+    },
+    "tabTypes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/tabType" }
+    },
+    "panels": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/panel" }
+    },
+    "popovers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/popover" }
+    },
+    "commands": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/command" }
+    },
+    "topbarItems": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/topbarItem" }
+    },
+    "statusBarItems": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/statusBarItem" }
+    },
+    "settings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/setting" }
+    },
+    "marketplace": {
+      "type": "object",
+      "description": "Listing metadata used by the marketplace. Required: icon + at least one screenshot. Ignored by the app loader. The pricing key is reserved for a future paid-extensions feature and is not yet enforced.",
+      "additionalProperties": false,
+      "required": ["icon", "screenshots"],
+      "properties": {
+        "author": { "type": "string" },
+        "github": { "type": "string", "description": "Author's GitHub username." },
+        "homepage": { "type": "string", "format": "uri" },
+        "repository": { "type": "string", "format": "uri" },
+        "categories": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "icon": {
+          "type": "string",
+          "description": "Relative path to the listing icon inside the extension directory. SVG (preferred) or square PNG ≥256×256.",
+          "pattern": "\\.(svg|png)$"
+        },
+        "screenshots": {
+          "type": "array",
+          "description": "Relative paths to listing screenshots inside the extension directory. At least one required. PNG, 1600×1000 (16:10).",
+          "minItems": 1,
+          "maxItems": 6,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "\\.png$" }
+        },
+        "pricing": {
+          "type": "object",
+          "description": "Reserved. Not enforced in v1.",
+          "additionalProperties": true
+        }
+      }
+    }
+  },
+  "$defs": {
+    "permission": {
+      "type": "string",
+      "enum": [
+        "panes:read",
+        "panes:write",
+        "tabs:read",
+        "tabs:write",
+        "projects:read",
+        "projects:write",
+        "worktrees:read",
+        "worktrees:write",
+        "notifications:write",
+        "panels:write",
+        "commands:run-script",
+        "commands:exec"
+      ]
+    },
+    "icon": {
+      "description": "Either an SF Symbol name string, { symbol }, or { svg: relative-path }.",
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["symbol"],
+          "properties": { "symbol": { "type": "string", "minLength": 1 } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["svg"],
+          "properties": { "svg": { "type": "string", "minLength": 1 } }
+        }
+      ]
+    },
+    "tabType": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "entry"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string" },
+        "entry": { "type": "string", "minLength": 1 },
+        "defaultData": {}
+      }
+    },
+    "panel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "entry"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string" },
+        "icon": { "$ref": "#/$defs/icon" },
+        "entry": { "type": "string", "minLength": 1 },
+        "position": { "enum": ["right", "bottom"] },
+        "mode": { "enum": ["pinned", "floating"] },
+        "hiddenControls": {
+          "type": "array",
+          "items": { "enum": ["close", "pin", "position"] },
+          "uniqueItems": true
+        },
+        "defaultData": {}
+      }
+    },
+    "popover": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "entry"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string" },
+        "entry": { "type": "string", "minLength": 1 },
+        "width": { "type": "number", "exclusiveMinimum": 0 },
+        "height": { "type": "number", "exclusiveMinimum": 0 },
+        "defaultData": {}
+      }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "action": { "$ref": "#/$defs/commandAction" }
+      }
+    },
+    "commandAction": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["event", "openTab", "togglePanel", "openPopover", "runScript"] }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "openTab" } } },
+          "then": {
+            "required": ["tabType"],
+            "properties": {
+              "kind": {},
+              "tabType": { "type": "string", "minLength": 1 },
+              "data": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "togglePanel" } } },
+          "then": {
+            "required": ["panel"],
+            "properties": {
+              "kind": {},
+              "panel": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "openPopover" } } },
+          "then": {
+            "required": ["popover"],
+            "properties": {
+              "kind": {},
+              "popover": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "runScript" } } },
+          "then": {
+            "required": ["script"],
+            "properties": {
+              "kind": {},
+              "script": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "event" } } },
+          "then": {
+            "properties": { "kind": {} },
+            "additionalProperties": false
+          }
+        }
+      ]
+    },
+    "topbarItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "icon", "command"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "icon": { "$ref": "#/$defs/icon" },
+        "tooltip": { "type": "string" },
+        "command": { "type": "string", "minLength": 1 }
+      }
+    },
+    "statusBarItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "icon", "side", "command"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "icon": { "$ref": "#/$defs/icon" },
+        "text": { "type": "string" },
+        "tooltip": { "type": "string" },
+        "side": { "enum": ["left", "right"] },
+        "command": { "type": "string", "minLength": 1 }
+      }
+    },
+    "setting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "title", "type"],
+      "properties": {
+        "key": { "type": "string", "minLength": 1 },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "enum": ["string", "bool", "number"] },
+        "defaultValue": {}
+      }
+    }
+  }
+}

@@ -61,6 +61,7 @@ flowchart TB
 | [Permissions](extensions/permissions.md) | What each permission grants |
 | [Events](extensions/events.md) | Identify/subscribe handshake, event list |
 | [Palette Commands](extensions/palette-commands.md) | Register palette commands, react to triggers |
+| [Contributing](extensions/contributing.md) | Create, validate, and publish an extension |
 
 ## Remote Server
 

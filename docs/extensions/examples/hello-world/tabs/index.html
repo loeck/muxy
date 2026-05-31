@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <h1>Hello, <span id="who">world</span>!</h1>
+    <button id="say">Toast</button>
+    <script>
+      document.getElementById("who").textContent = muxy.extensionID;
+      document.getElementById("say").addEventListener("click", () =>
+        muxy.toast({ title: "Hello", body: `theme: ${muxy.theme.colorScheme}` })
+      );
+    </script>
+  </body>
+</html>

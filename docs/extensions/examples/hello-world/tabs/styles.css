@@ -1,0 +1,27 @@
+body {
+  margin: 0;
+  padding: 24px;
+  font: 13px -apple-system, system-ui, sans-serif;
+  background: var(--muxy-background);
+  color: var(--muxy-foreground);
+}
+
+h1 {
+  font-size: 18px;
+  color: var(--muxy-accent);
+}
+
+button {
+  background: var(--muxy-surface);
+  color: var(--muxy-foreground);
+  border: 1px solid var(--muxy-border);
+  border-radius: 5px;
+  padding: 6px 10px;
+  font: inherit;
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--muxy-hover);
+  border-color: var(--muxy-accent);
+}

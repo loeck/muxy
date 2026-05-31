@@ -78,6 +78,13 @@ flowchart TD
 | [Settings](settings.md) | Declare typed settings and read/write them at runtime |
 | [Scripts](scripts.md) | Run JS files as palette commands in a per-extension JSContext |
 | [Logs](logs.md) | Where logs live on disk, console.* bridge, size cap and trim policy |
+| [Contributing](contributing.md) | Create, validate, and publish an extension |
+
+## Quick links
+
+- Example extension: [`examples/hello-world`](examples/hello-world)
+- Manifest schema: [`schema/manifest.schema.json`](schema/manifest.schema.json)
+- Community extensions: [muxy-extensions repo](https://github.com/muxy-app/extensions)
 
 ## Quick reference
 
