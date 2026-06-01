@@ -66,6 +66,7 @@ enum ExtensionPermission: String, Codable, CaseIterable {
     case panelsWrite = "panels:write"
     case commandsRunScript = "commands:run-script"
     case commandsExec = "commands:exec"
+    case remoteServe = "remote:serve"
 
     enum Kind {
         case read
@@ -88,8 +89,16 @@ enum ExtensionPermission: String, Codable, CaseIterable {
              .panelsWrite:
             .write
         case .commandsRunScript,
-             .commandsExec:
+             .commandsExec,
+             .remoteServe:
             .action
+        }
+    }
+
+    var displayName: String {
+        switch self {
+        case .remoteServe: "remote-api"
+        default: rawValue
         }
     }
 }
@@ -412,6 +421,11 @@ struct ExtensionPaletteCommand: Codable, Equatable, Identifiable {
     }
 }
 
+struct ExtensionRemoteMethod: Codable, Equatable, Identifiable {
+    let id: String
+    let description: String?
+}
+
 struct ExtensionManifest: Codable, Equatable {
     let name: String
     let version: String
@@ -426,6 +440,7 @@ struct ExtensionManifest: Codable, Equatable {
     let topbarItems: [ExtensionTopbarItem]
     let statusBarItems: [ExtensionStatusBarItem]
     let settings: [ExtensionSettingEntry]
+    let remoteMethods: [ExtensionRemoteMethod]
 
     private enum CodingKeys: String, CodingKey {
         case name
@@ -441,6 +456,7 @@ struct ExtensionManifest: Codable, Equatable {
         case topbarItems
         case statusBarItems
         case settings
+        case remoteMethods
     }
 
     init(
@@ -456,7 +472,8 @@ struct ExtensionManifest: Codable, Equatable {
         permissions: [ExtensionPermission] = [],
         topbarItems: [ExtensionTopbarItem] = [],
         statusBarItems: [ExtensionStatusBarItem] = [],
-        settings: [ExtensionSettingEntry] = []
+        settings: [ExtensionSettingEntry] = [],
+        remoteMethods: [ExtensionRemoteMethod] = []
     ) {
         self.name = name
         self.version = version
@@ -471,6 +488,7 @@ struct ExtensionManifest: Codable, Equatable {
         self.topbarItems = topbarItems
         self.statusBarItems = statusBarItems
         self.settings = settings
+        self.remoteMethods = remoteMethods
     }
 
     init(from decoder: Decoder) throws {
@@ -488,6 +506,7 @@ struct ExtensionManifest: Codable, Equatable {
         topbarItems = try container.decodeIfPresent([ExtensionTopbarItem].self, forKey: .topbarItems) ?? []
         statusBarItems = try container.decodeIfPresent([ExtensionStatusBarItem].self, forKey: .statusBarItems) ?? []
         settings = try container.decodeIfPresent([ExtensionSettingEntry].self, forKey: .settings) ?? []
+        remoteMethods = try container.decodeIfPresent([ExtensionRemoteMethod].self, forKey: .remoteMethods) ?? []
     }
 
     init(package: PackageManifest) {
@@ -505,6 +524,7 @@ struct ExtensionManifest: Codable, Equatable {
         topbarItems = muxy.topbarItems
         statusBarItems = muxy.statusBarItems
         settings = muxy.settings
+        remoteMethods = muxy.remoteMethods
     }
 
     func tabType(id: String) -> ExtensionTabType? {
@@ -525,6 +545,10 @@ struct ExtensionManifest: Codable, Equatable {
 
     func statusBarItem(id: String) -> ExtensionStatusBarItem? {
         statusBarItems.first { $0.id == id }
+    }
+
+    func remoteMethod(id: String) -> ExtensionRemoteMethod? {
+        remoteMethods.first { $0.id == id }
     }
 }
 
@@ -552,6 +576,7 @@ struct MuxyManifestBody: Codable, Equatable {
     let topbarItems: [ExtensionTopbarItem]
     let statusBarItems: [ExtensionStatusBarItem]
     let settings: [ExtensionSettingEntry]
+    let remoteMethods: [ExtensionRemoteMethod]
 
     private enum CodingKeys: String, CodingKey {
         case description
@@ -565,6 +590,7 @@ struct MuxyManifestBody: Codable, Equatable {
         case topbarItems
         case statusBarItems
         case settings
+        case remoteMethods
     }
 
     init(from decoder: Decoder) throws {
@@ -580,6 +606,7 @@ struct MuxyManifestBody: Codable, Equatable {
         topbarItems = try container.decodeIfPresent([ExtensionTopbarItem].self, forKey: .topbarItems) ?? []
         statusBarItems = try container.decodeIfPresent([ExtensionStatusBarItem].self, forKey: .statusBarItems) ?? []
         settings = try container.decodeIfPresent([ExtensionSettingEntry].self, forKey: .settings) ?? []
+        remoteMethods = try container.decodeIfPresent([ExtensionRemoteMethod].self, forKey: .remoteMethods) ?? []
     }
 }
 
@@ -619,6 +646,9 @@ enum ExtensionLoadError: LocalizedError, Equatable {
     case statusBarItemSVGOutsideDirectory(itemID: String, url: URL)
     case settingEmptyKey
     case duplicateSettingKey(String)
+    case remoteMethodEmptyID
+    case remoteMethodInvalidID(String)
+    case duplicateRemoteMethod(String)
 
     var errorDescription: String? {
         switch self {
@@ -692,6 +722,12 @@ enum ExtensionLoadError: LocalizedError, Equatable {
             "Setting key must not be empty"
         case let .duplicateSettingKey(key):
             "Duplicate setting key '\(key)'"
+        case .remoteMethodEmptyID:
+            "Remote method id must not be empty"
+        case let .remoteMethodInvalidID(id):
+            "Remote method id '\(id)' must not contain control characters or '|'"
+        case let .duplicateRemoteMethod(id):
+            "Duplicate remote method '\(id)'"
         }
     }
 }
@@ -773,6 +809,7 @@ enum ExtensionManifestLoader {
         try validateTopbarItems(manifest: manifest, in: muxyExtension)
         try validateStatusBarItems(manifest: manifest, in: muxyExtension)
         try validateSettings(manifest: manifest)
+        try validateRemoteMethods(manifest: manifest)
 
         migrateLegacyEnabledFlag(rawManifest: data, extensionID: manifest.name)
 
@@ -976,6 +1013,19 @@ enum ExtensionManifestLoader {
             guard !entry.key.isEmpty else { throw ExtensionLoadError.settingEmptyKey }
             guard seen.insert(entry.key).inserted else {
                 throw ExtensionLoadError.duplicateSettingKey(entry.key)
+            }
+        }
+    }
+
+    private static func validateRemoteMethods(manifest: ExtensionManifest) throws {
+        var seen = Set<String>()
+        for method in manifest.remoteMethods {
+            guard !method.id.isEmpty else { throw ExtensionLoadError.remoteMethodEmptyID }
+            guard !method.id.unicodeScalars.contains(where: { $0 == "|" || CharacterSet.controlCharacters.contains($0) }) else {
+                throw ExtensionLoadError.remoteMethodInvalidID(method.id)
+            }
+            guard seen.insert(method.id).inserted else {
+                throw ExtensionLoadError.duplicateRemoteMethod(method.id)
             }
         }
     }

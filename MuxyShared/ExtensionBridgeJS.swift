@@ -18,7 +18,7 @@ public enum ExtensionBridgeJS {
             const muxy = {
                 extensionID: \(extLiteral),
                 \(surface == .inProcess ? "toast: (opts) => dispatch('toast', opts || {})," : "")
-                \(surface == .inProcess ? "notifications: { notify: (opts) => dispatch('notifications.notify', opts || {}) }," : "")
+                notifications: { notify: (opts) => dispatch('notifications.notify', opts || {}) },
                 exec(argvOrOptions, maybeOptions) {
                     let payload;
                     if (Array.isArray(argvOrOptions)) {
@@ -43,10 +43,12 @@ public enum ExtensionBridgeJS {
             };
         \(surface == .inProcess ? workspaceBlock : "")
         \(surface == .background ? eventsBlock : "")
+        \(surface == .background ? remoteBlock : "")
             \(surface == .inProcess ?
-            "Object.freeze(muxy.notifications); Object.freeze(muxy.tabs); Object.freeze(muxy.panes); Object.freeze(muxy.projects); Object.freeze(muxy.worktrees);" :
+            "Object.freeze(muxy.tabs); Object.freeze(muxy.panes); Object.freeze(muxy.projects); Object.freeze(muxy.worktrees);" :
             "")
-            \(surface == .background ? "Object.freeze(muxy.events);" : "")
+            Object.freeze(muxy.notifications);
+            \(surface == .background ? "Object.freeze(muxy.events); Object.freeze(muxy.remote);" : "")
             Object.freeze(muxy);
             this.muxy = muxy;
 
@@ -133,6 +135,48 @@ public enum ExtensionBridgeJS {
                     const index = list.indexOf(handler);
                     if (index >= 0) list.splice(index, 1);
                 },
+            };
+    """
+
+    private static let remoteBlock = """
+            const remoteHandlers = {};
+            this.__muxyRemoteHandlers = remoteHandlers;
+            muxy.remote = {
+                handle(action, handler) {
+                    remoteHandlers[String(action)] = handler;
+                },
+                unhandle(action) {
+                    delete remoteHandlers[String(action)];
+                },
+            };
+            this.__muxyDispatchInvoke = (callID, action, argument) => {
+                const handler = remoteHandlers[String(action)];
+                if (typeof handler !== 'function') {
+                    __muxyInvokeReject(callID, "no handler registered for '" + action + "'");
+                    return;
+                }
+                let result;
+                try {
+                    result = handler(argument);
+                } catch (error) {
+                    __muxyInvokeReject(callID, String((error && error.message) || error));
+                    return;
+                }
+                Promise.resolve(result).then(
+                    (value) => {
+                        let json;
+                        try {
+                            json = JSON.stringify(value === undefined ? null : value);
+                        } catch (e) {
+                            __muxyInvokeReject(callID, 'result is not serializable');
+                            return;
+                        }
+                        __muxyInvokeResolve(callID, json == null ? 'null' : json);
+                    },
+                    (error) => {
+                        __muxyInvokeReject(callID, String((error && error.message) || error));
+                    }
+                );
             };
     """
 
