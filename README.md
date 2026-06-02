@@ -14,6 +14,10 @@
   <img src="https://img.shields.io/github/commit-activity/m/muxy-app/muxy" />
 </div>
 
+## Vision
+
+Lightweight terminal that has a rich API for extensions
+
 ## Screenshots
 
 <img width="3004" alt="image" src="https://github.com/user-attachments/assets/721c6b4a-bd9c-4e4e-ade0-cd2597399801" />
