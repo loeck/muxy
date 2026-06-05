@@ -27,6 +27,8 @@ final class ExtensionStore {
         let muxyExtension: MuxyExtension
         var isEnabled: Bool
         var isRunning: Bool
+        var isDev: Bool
+        var devSourcePath: String?
         var lastError: String?
 
         var logFileURL: URL {
@@ -58,6 +60,7 @@ final class ExtensionStore {
     private let snapshotSink: ExtensionSnapshotSink
     private let resolveHostURL: @MainActor () -> URL?
     private let marketplace: ExtensionMarketplaceService
+    private let devPathsProvider: @MainActor () -> [String]
 
     nonisolated private static let processTerminationGracePeriod: TimeInterval = 2
     nonisolated private static let maxCrashRestartAttempts = 5
@@ -68,25 +71,29 @@ final class ExtensionStore {
         rootDirectory: URL = ExtensionStore.defaultRootDirectory,
         snapshotSink: ExtensionSnapshotSink = NotificationSocketServer.shared,
         resolveHostURL: @escaping @MainActor () -> URL? = { ExtensionHostLocator.hostURL() },
-        marketplace: ExtensionMarketplaceService = .shared
+        marketplace: ExtensionMarketplaceService = .shared,
+        devPathsProvider: @escaping @MainActor () -> [String] = { ExtensionDevPathStore.paths() }
     ) {
         rootDirectoryURL = rootDirectory
         self.snapshotSink = snapshotSink
         self.resolveHostURL = resolveHostURL
         self.marketplace = marketplace
+        self.devPathsProvider = devPathsProvider
     }
 
     static func makeForTesting(
         rootDirectory: URL,
         snapshotSink: ExtensionSnapshotSink,
         resolveHostURL: @escaping @MainActor () -> URL?,
-        marketplace: ExtensionMarketplaceService = .shared
+        marketplace: ExtensionMarketplaceService = .shared,
+        devPathsProvider: @escaping @MainActor () -> [String] = { [] }
     ) -> ExtensionStore {
         ExtensionStore(
             rootDirectory: rootDirectory,
             snapshotSink: snapshotSink,
             resolveHostURL: resolveHostURL,
-            marketplace: marketplace
+            marketplace: marketplace,
+            devPathsProvider: devPathsProvider
         )
     }
 
@@ -138,6 +145,16 @@ final class ExtensionStore {
         startAll()
     }
 
+    func addDevPath(_ path: String) {
+        ExtensionDevPathStore.add(path)
+        reload()
+    }
+
+    func removeDevPath(_ path: String) {
+        ExtensionDevPathStore.remove(path)
+        reload()
+    }
+
     func install(expectedName: String, zip: Data) async throws {
         let staged = try await Task.detached {
             try Self.unpackAndValidate(expectedName: expectedName, zip: zip)
@@ -167,21 +184,21 @@ final class ExtensionStore {
     }
 
     func checkForUpdates() async {
-        let installed = statuses.map(\.id)
+        let installed = statuses.filter { !$0.isDev }
         guard !installed.isEmpty else {
             availableUpdates = [:]
             return
         }
         let remote: [String: String]
         do {
-            remote = try await marketplace.resolveVersions(names: installed)
+            remote = try await marketplace.resolveVersions(names: installed.map(\.id))
         } catch {
             logger.error("Failed to check for extension updates: \(error.localizedDescription)")
             return
         }
 
         var updates: [String: String] = [:]
-        for status in statuses {
+        for status in installed {
             guard let remoteVersion = remote[status.id] else { continue }
             let installedVersion = status.muxyExtension.manifest.version
             if SemanticVersion.isUpdate(installed: installedVersion, available: remoteVersion) {
@@ -192,6 +209,7 @@ final class ExtensionStore {
     }
 
     func update(extensionID: String) async throws {
+        guard let status = statuses.first(where: { $0.id == extensionID }), !status.isDev else { return }
         let ext = try await marketplace.fetch(name: extensionID)
         let zip = try await marketplace.download(ext)
         try await install(expectedName: ext.name, zip: zip)
@@ -675,40 +693,59 @@ final class ExtensionStore {
             guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
                   isDirectory.boolValue
             else { continue }
+            loadOne(at: url, enforceNameMatchesDirectory: true, seenIDs: &seenIDs)
+        }
 
-            do {
-                let ext = try ExtensionManifestLoader.load(from: url)
-                guard ext.id == url.lastPathComponent else {
-                    throw ExtensionLoadError.nameDirectoryMismatch(
-                        name: ext.id,
-                        directory: url.lastPathComponent
-                    )
-                }
-                guard !seenIDs.contains(ext.id) else {
-                    loadFailures.append(LoadFailure(
-                        directory: url,
-                        message: ExtensionLoadError.duplicateName(ext.id).localizedDescription
-                    ))
-                    continue
-                }
-                seenIDs.insert(ext.id)
-                ExtensionLogStore.shared.register(extensionID: ext.id, directory: ext.directory)
-                statuses.append(ExtensionStatus(
-                    id: ext.id,
-                    muxyExtension: ext,
-                    isEnabled: ExtensionEnabledStore.isEnabled(extensionID: ext.id),
-                    isRunning: false,
-                    lastError: nil
-                ))
-            } catch {
-                loadFailures.append(LoadFailure(
-                    directory: url,
-                    message: error.localizedDescription
-                ))
-                logger.error("Failed to load extension at \(url.path): \(error.localizedDescription)")
-            }
+        for path in devPathsProvider() {
+            loadOne(
+                at: URL(fileURLWithPath: path, isDirectory: true),
+                enforceNameMatchesDirectory: false,
+                devSourcePath: path,
+                seenIDs: &seenIDs
+            )
         }
         pruneResolvedUpdates()
+    }
+
+    private func loadOne(
+        at url: URL,
+        enforceNameMatchesDirectory: Bool,
+        devSourcePath: String? = nil,
+        seenIDs: inout Set<String>
+    ) {
+        do {
+            let ext = try ExtensionManifestLoader.load(from: url)
+            if enforceNameMatchesDirectory, ext.id != url.lastPathComponent {
+                throw ExtensionLoadError.nameDirectoryMismatch(
+                    name: ext.id,
+                    directory: url.lastPathComponent
+                )
+            }
+            guard !seenIDs.contains(ext.id) else {
+                loadFailures.append(LoadFailure(
+                    directory: url,
+                    message: ExtensionLoadError.duplicateName(ext.id).localizedDescription
+                ))
+                return
+            }
+            seenIDs.insert(ext.id)
+            ExtensionLogStore.shared.register(extensionID: ext.id, directory: ext.directory)
+            statuses.append(ExtensionStatus(
+                id: ext.id,
+                muxyExtension: ext,
+                isEnabled: ExtensionEnabledStore.isEnabled(extensionID: ext.id),
+                isRunning: false,
+                isDev: devSourcePath != nil,
+                devSourcePath: devSourcePath,
+                lastError: nil
+            ))
+        } catch {
+            loadFailures.append(LoadFailure(
+                directory: url,
+                message: error.localizedDescription
+            ))
+            logger.error("Failed to load extension at \(url.path): \(error.localizedDescription)")
+        }
     }
 
     private func pruneResolvedUpdates() {
