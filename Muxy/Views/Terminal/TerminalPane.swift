@@ -17,6 +17,19 @@ struct TerminalPane: View {
         if case let .remote(_, name) = ownership.owner(for: state.id) { name } else { nil }
     }
 
+    private var showsSleepingPlaceholder: Bool {
+        SleepingTabPlaceholderPolicy.shouldPresent(
+            isVisible: visible,
+            isOffline: state.isOffline,
+            isRemotelyOwned: remoteOwnerName != nil
+        )
+    }
+
+    private func wakePane() {
+        TerminalViewRegistry.shared.existingView(for: state.id)?.wake()
+        onFocus()
+    }
+
     var body: some View {
         terminalLayer
             .onReceive(NotificationCenter.default.publisher(for: .refocusActiveTerminal)) { _ in
@@ -73,7 +86,55 @@ struct TerminalPane: View {
                 )
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
+
+            if showsSleepingPlaceholder {
+                SleepingTabPlaceholder(isFocused: focused, onWake: wakePane)
+                    .transition(.opacity)
+            }
         }
+    }
+}
+
+struct SleepingTabPlaceholder: View {
+    let isFocused: Bool
+    let onWake: () -> Void
+
+    var body: some View {
+        VStack(spacing: UIMetrics.spacing7) {
+            Spacer()
+            Image(systemName: "moon.zzz")
+                .font(.system(size: UIMetrics.fontMega))
+                .foregroundStyle(MuxyTheme.fgMuted)
+            Text("Tab is asleep")
+                .font(.system(size: UIMetrics.fontHeadline, weight: .semibold))
+                .foregroundStyle(MuxyTheme.fg)
+            Text("This terminal was freed to save memory. Wake it to resume your session.")
+                .font(.system(size: UIMetrics.fontBody))
+                .foregroundStyle(MuxyTheme.fgMuted)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: UIMetrics.scaled(360))
+            Button(action: onWake) {
+                HStack(spacing: UIMetrics.spacing4) {
+                    Text("Wake")
+                    if isFocused {
+                        Text("⏎")
+                            .font(.system(size: UIMetrics.fontFootnote, weight: .medium, design: .rounded))
+                            .opacity(0.72)
+                    }
+                }
+            }
+            .keyboardShortcut(isFocused ? KeyboardShortcut(.return, modifiers: []) : nil)
+            .buttonStyle(.borderedProminent)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(MuxyTheme.bg)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onWake)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityLabel("Tab is asleep")
+        .accessibilityHint("Wake the terminal to resume your session")
     }
 }
 
@@ -150,6 +211,7 @@ struct TerminalBridge: NSViewRepresentable {
         view.isFocused = focused
         view.overlayActive = overlayActive
         view.setVisible(visible)
+        view.setFocused(focused)
         view.onFocus = onFocus
         view.onProcessExit = onProcessExit
         view.onSplitRequest = onSplitRequest
@@ -193,6 +255,7 @@ struct TerminalBridge: NSViewRepresentable {
         nsView.overlayActive = overlayActive
         nsView.updateResumeWorkingDirectory(state.currentWorkingDirectory ?? state.projectPath)
         nsView.setVisible(visible)
+        nsView.setFocused(focused)
         nsView.onFocus = onFocus
         nsView.onProcessExit = onProcessExit
         nsView.onSplitRequest = onSplitRequest
