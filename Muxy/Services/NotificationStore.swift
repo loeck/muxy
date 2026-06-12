@@ -148,8 +148,12 @@ final class NotificationStore {
             payload: [
                 "paneID": notification.paneID.uuidString,
                 "projectID": notification.projectID.uuidString,
+                "worktreeID": notification.worktreeID.uuidString,
+                "worktreePath": notification.worktreePath,
                 "tabID": notification.tabID.uuidString,
+                "source": notification.source.key,
                 "title": notification.title,
+                "body": notification.body,
             ]
         ))
     }

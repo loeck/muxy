@@ -36,7 +36,7 @@ muxy.events.subscribe('extension.refresh.request', async () => {
 
 ## Subscribing
 
-- **Workspace events** (`pane.*`, `tab.*`, `panel.*`, `popover.*`, `project.*`, `worktree.*`, `notification.posted`, `file.changed`) must be listed in your manifest `events` array before you can subscribe. Subscribing to anything not declared is rejected.
+- **Workspace events** (`pane.*`, `tab.*`, `panel.*`, `popover.*`, `project.*`, `worktree.*`, `notification.posted`, `agent.status`, `file.changed`) must be listed in your manifest `events` array before you can subscribe. Subscribing to anything not declared is rejected.
 - **Command events** (`command.<id>`) are auto-allowed: declaring a command in `manifest.commands` is implicit consent to receive its trigger, so you do not add it to `events`.
 - **Extension-local events** (`extension.*`) are auto-allowed for the same extension. They are not workspace events, do not appear in `events`, and cannot cross extension boundaries.
 
@@ -67,10 +67,13 @@ When an extension is reloaded or disabled, its subscriptions are dropped and re-
 | `popover.closed` | `extensionID`, `popoverID` | `events: ["popover.closed"]` |
 | `project.switched` | `projectID` | `events: ["project.switched"]` |
 | `worktree.switched` | `projectID`, `worktreeID` | `events: ["worktree.switched"]` |
-| `notification.posted` | `paneID`, `projectID`, `tabID`, `title` | `events: ["notification.posted"]` |
+| `notification.posted` | `paneID`, `projectID`, `worktreeID`, `worktreePath`, `tabID`, `source`, `title`, `body` | `events: ["notification.posted"]` |
+| `agent.status` | `worktreeID`, `projectID`, `paneID`, `providerID`, `status` | `events: ["agent.status"]` |
 | `file.changed` | `path`, `projectPath` | `events: ["file.changed"]` |
 | `command.<id>` | `command`, `extension` | Auto-allowed when `commands[].id == <id>` |
 | `extension.<name>` | JSON payload from emitter | Auto-allowed same-extension local event |
+
+`agent.status` reports an AI coding agent's lifecycle per worktree, driven by the provider's hooks (Claude Code today): `working` when a prompt is submitted, `waiting` when the agent needs attention, `idle` when it stops. `providerID` identifies the agent (e.g. `claude`). It fires only when the status changes, and once more as `idle` when the agent's pane closes. Pair it with [`muxy.agents.list()`](permissions.md) to hydrate current statuses on load.
 
 `file.changed` fires for files under the active project/worktree root. It is debounced (~0.3s) and skips Git-internal noise (`.git/` lock files and directories); one event is delivered per changed `path`, with `projectPath` set to the watched root. Pair it with [`muxy.files`](files.md) to build a reactive file tree.
 

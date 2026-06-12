@@ -67,6 +67,14 @@ struct WorktreeInfo: Equatable {
     let isActive: Bool
 }
 
+struct AgentInfo: Equatable {
+    let worktreeID: UUID
+    let projectID: UUID
+    let paneID: UUID
+    let providerID: String
+    let status: String
+}
+
 struct TabInfo: Equatable {
     let index: Int
     let id: UUID
@@ -172,6 +180,7 @@ enum MuxyAPI {
 
         private static let extensionVerbs: Set<String> = Set([
             "exec",
+            "agents.list",
             "http.fetch",
             "dialog.confirm",
             "dialog.alert",
@@ -290,6 +299,7 @@ enum MuxyAPI {
             "worktrees.create": .worktreesWrite,
             "worktrees.switch": .worktreesWrite,
             "worktrees.refresh": .worktreesWrite,
+            "agents.list": .agentsRead,
             "git.status": .gitRead,
             "git.diff": .gitRead,
             "git.repoInfo": .gitRead,
@@ -760,6 +770,21 @@ enum MuxyAPI {
                 return .success(RefreshWorktreesResult(count: worktrees.count))
             } catch {
                 return .failure(.underlying(error.localizedDescription))
+            }
+        }
+    }
+
+    @MainActor
+    enum Agents {
+        static func list() -> [AgentInfo] {
+            AgentStatusStore.shared.entries.values.map { entry in
+                AgentInfo(
+                    worktreeID: entry.worktreeID,
+                    projectID: entry.projectID,
+                    paneID: entry.paneID,
+                    providerID: entry.providerID,
+                    status: entry.status.rawValue
+                )
             }
         }
     }

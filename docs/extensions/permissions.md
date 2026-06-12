@@ -19,6 +19,7 @@ Permissions apply only to identified callers. The host identifies itself on beha
 | `projects:write` | `switch-project` |
 | `worktrees:read` | `list-worktrees` |
 | `worktrees:write` | `create-worktree`, `switch-worktree`, `refresh-worktrees` |
+| `agents:read` | `agents.list` — current AI agent status per worktree. Pair with the `agent.status` [event](events.md). |
 | `git:read` | `git.status`, `git.diff`, `git.repoInfo`, `git.log`, `git.branches`, `git.remoteBranches`, `git.currentBranch`, `git.aheadBehind`, `git.pr.info`, `git.pr.number`, `git.pr.diff`, `git.pr.list`, `git.worktrees` — see [Git](git.md). |
 | `git:write` | `git.init`, `git.stage`, `git.unstage`, `git.discard`, `git.commit`, `git.push`, `git.pull`, `git.checkout`, `git.cherryPick`, `git.revert`, `git.tag.create`, `git.branch.*` (create/switch/delete/deleteRemote), `git.pr.*` writes (create/merge/close/checkout/checkoutWorktree), `git.worktree.*` (add/remove/switch). Each call also prompts for runtime consent. |
 | `files:read` | `files.list`, `files.read`, `files.stat` — see [Files](files.md). |

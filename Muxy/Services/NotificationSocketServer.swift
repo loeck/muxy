@@ -259,6 +259,23 @@ final class NotificationSocketServer: @unchecked Sendable {
         let body: Data
     }
 
+    struct AgentStatusMessage: Equatable {
+        let socketType: String
+        let paneID: UUID
+        let status: AgentStatus
+    }
+
+    static func parseAgentStatusMessage(_ message: String) -> AgentStatusMessage? {
+        let parts = message.split(separator: "|", maxSplits: 3, omittingEmptySubsequences: false).map(String.init)
+        guard parts.count == 4,
+              parts[0] == "agent_status",
+              !parts[1].isEmpty,
+              let paneID = UUID(uuidString: parts[2]),
+              let status = AgentStatus(rawValue: parts[3])
+        else { return nil }
+        return AgentStatusMessage(socketType: parts[1], paneID: paneID, status: status)
+    }
+
     static func parseInvokeResult(_ message: String) -> InvokeResult? {
         let parts = message.split(separator: "|", maxSplits: 3, omittingEmptySubsequences: false).map(String.init)
         guard parts.count >= 3, parts[0] == "invoke-result", !parts[1].isEmpty else { return nil }
@@ -649,6 +666,13 @@ final class NotificationSocketServer: @unchecked Sendable {
             return
         }
 
+        if let statusMessage = Self.parseAgentStatusMessage(message) {
+            DispatchQueue.main.async { [weak self] in
+                self?.dispatchAgentStatus(statusMessage)
+            }
+            return
+        }
+
         let parts = message.split(separator: "|", maxSplits: 3).map(String.init)
         guard parts.count >= 3 else {
             logger.warning("Invalid message on notification socket: expected type|paneID|title|body")
@@ -677,6 +701,18 @@ final class NotificationSocketServer: @unchecked Sendable {
         DispatchQueue.main.async { [weak self] in
             self?.dispatchNotification(type: type, title: title, body: body, paneIDString: paneIDString)
         }
+    }
+
+    @MainActor
+    private func dispatchAgentStatus(_ message: AgentStatusMessage) {
+        guard let appState = NotificationStore.shared.appState else { return }
+        let providerID = AIProviderRegistry.shared.notificationSource(for: message.socketType).key
+        AgentStatusStore.shared.update(
+            paneID: message.paneID,
+            providerID: providerID,
+            status: message.status,
+            appState: appState
+        )
     }
 
     @MainActor

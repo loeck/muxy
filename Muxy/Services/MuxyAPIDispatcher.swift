@@ -184,6 +184,8 @@ enum MuxyAPIDispatcher {
                 callingExtensionID: context.extensionID
             ))
             return NSNull()
+        case "agents.list":
+            return MuxyAPI.Agents.list().map(agentDict)
         case "panes.list":
             return MuxyAPI.Panes.list(appState: context.appState).map(paneDict)
         case "panes.send":
@@ -703,6 +705,16 @@ enum MuxyAPIDispatcher {
             "kind": tab.kind.rawValue,
             "title": tab.title,
             "isActive": tab.isActive,
+        ]
+    }
+
+    private static func agentDict(_ agent: AgentInfo) -> [String: Any] {
+        [
+            "worktreeID": agent.worktreeID.uuidString,
+            "projectID": agent.projectID.uuidString,
+            "paneID": agent.paneID.uuidString,
+            "providerID": agent.providerID,
+            "status": agent.status,
         ]
     }
 

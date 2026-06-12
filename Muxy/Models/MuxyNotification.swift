@@ -6,6 +6,14 @@ final class MuxyNotification: Identifiable, @preconcurrency Codable {
         case osc
         case aiProvider(String)
         case socket
+
+        var key: String {
+            switch self {
+            case .osc: "osc"
+            case let .aiProvider(id): id
+            case .socket: "socket"
+            }
+        }
     }
 
     let id: UUID

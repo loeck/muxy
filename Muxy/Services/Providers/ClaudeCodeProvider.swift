@@ -26,25 +26,35 @@ struct ClaudeCodeProvider: AIProviderIntegration {
 
         let stopCommand = Self.hookCommand(hookScript: hookScriptPath, event: "stop")
         let notificationCommand = Self.hookCommand(hookScript: hookScriptPath, event: "notification")
+        let userPromptCommand = Self.hookCommand(hookScript: hookScriptPath, event: "user-prompt-submit")
 
         let stopMatches = Self.muxyHookMatches(entries: hooks["Stop"] as? [[String: Any]], expectedCommand: stopCommand)
         let notificationMatches = Self.muxyHookMatches(
             entries: hooks["Notification"] as? [[String: Any]],
             expectedCommand: notificationCommand
         )
+        let userPromptMatches = Self.muxyHookMatches(
+            entries: hooks["UserPromptSubmit"] as? [[String: Any]],
+            expectedCommand: userPromptCommand
+        )
 
-        guard !stopMatches || !notificationMatches else { return }
+        guard !stopMatches || !notificationMatches || !userPromptMatches else { return }
 
         var updatedSettings = settings
         var updatedHooks = hooks
 
         let stopHook = Self.buildHookEntry(command: stopCommand)
         let notificationHook = Self.buildHookEntry(command: notificationCommand)
+        let userPromptHook = Self.buildHookEntry(command: userPromptCommand)
 
         updatedHooks["Stop"] = Self.mergeHookArray(existing: hooks["Stop"] as? [[String: Any]], muxyHook: stopHook)
         updatedHooks["Notification"] = Self.mergeHookArray(
             existing: hooks["Notification"] as? [[String: Any]],
             muxyHook: notificationHook
+        )
+        updatedHooks["UserPromptSubmit"] = Self.mergeHookArray(
+            existing: hooks["UserPromptSubmit"] as? [[String: Any]],
+            muxyHook: userPromptHook
         )
 
         updatedSettings["hooks"] = updatedHooks
@@ -56,7 +66,7 @@ struct ClaudeCodeProvider: AIProviderIntegration {
         var settings = try Self.readSettings()
         guard var hooks = settings["hooks"] as? [String: Any] else { return }
 
-        for key in ["Stop", "Notification"] {
+        for key in ["Stop", "Notification", "UserPromptSubmit"] {
             guard var entries = hooks[key] as? [[String: Any]] else { continue }
             entries.removeAll { Self.isMuxyHookEntry($0) }
             if entries.isEmpty {

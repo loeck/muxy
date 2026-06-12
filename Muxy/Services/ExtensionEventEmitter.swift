@@ -136,6 +136,7 @@ enum ExtensionEventEmitter {
             ))
         }
         for paneID in before.panes.subtracting(after.panes) {
+            AgentStatusStore.shared.removePane(paneID)
             server.broadcast(event: ExtensionEvent(
                 name: ExtensionEventName.paneClosed,
                 payload: paneEventPayload(paneID: paneID, context: before.paneContext[paneID])
