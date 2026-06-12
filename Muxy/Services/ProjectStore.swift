@@ -78,6 +78,17 @@ final class ProjectStore {
         save()
     }
 
+    func reorder(orderedIDs: [UUID]) {
+        let rank = Dictionary(uniqueKeysWithValues: orderedIDs.enumerated().map { ($1, $0) })
+        storedProjects.sort {
+            (rank[$0.id] ?? Int.max, $0.sortOrder) < (rank[$1.id] ?? Int.max, $1.sortOrder)
+        }
+        for index in storedProjects.indices {
+            storedProjects[index].sortOrder = index
+        }
+        save()
+    }
+
     func save() {
         do {
             try persistence.saveProjects(storedProjects)

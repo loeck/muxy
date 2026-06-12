@@ -181,6 +181,17 @@ enum ExtensionWebBridge {
                 projects: {
                     list() { return send('projects.list', {}); },
                     switchTo(identifier) { return send('projects.switch', { identifier: String(identifier) }); },
+                    add(path) { return send('projects.add', { path: String(path) }); },
+                    rename(id, name) { return send('projects.rename', { id: String(id), name: String(name) }); },
+                    remove(id) { return send('projects.remove', { id: String(id) }); },
+                    setColor(id, color) {
+                        return send('projects.setColor', { id: String(id), color: color == null ? null : String(color) });
+                    },
+                    setIcon(id, icon) { return send('projects.setIcon', { id: String(id), icon: icon == null ? null : String(icon) }); },
+                    setWorktreesEnabled(id, enabled) {
+                        return send('projects.setWorktreesEnabled', { id: String(id), enabled: Boolean(enabled) });
+                    },
+                    reorder(ids) { return send('projects.reorder', { ids: (ids || []).map((value) => String(value)) }); },
                 },
                 panels: {
                     open(panel, data) { return send('panel.open', { panel: String(panel), data: data ?? null }); },

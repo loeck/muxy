@@ -1,4 +1,5 @@
 import Foundation
+import MuxyShared
 
 enum APIError: Error, Equatable {
     case invalidArguments(String)
@@ -286,6 +287,13 @@ enum MuxyAPI {
             "tabs.setIcon": .tabsWrite,
             "projects.list": .projectsRead,
             "projects.switch": .projectsWrite,
+            "projects.add": .projectsWrite,
+            "projects.rename": .projectsWrite,
+            "projects.remove": .projectsWrite,
+            "projects.setColor": .projectsWrite,
+            "projects.setIcon": .projectsWrite,
+            "projects.setWorktreesEnabled": .projectsWrite,
+            "projects.reorder": .projectsWrite,
             "worktrees.list": .worktreesRead,
             "worktrees.create": .worktreesWrite,
             "worktrees.switch": .worktreesWrite,
@@ -642,6 +650,71 @@ enum MuxyAPI {
             }
             appState.selectProject(project, worktree: worktree)
             return .success(())
+        }
+
+        static func add(
+            path: String,
+            appState: AppState,
+            projectStore: ProjectStore,
+            worktreeStore: WorktreeStore,
+            projectGroupStore: ProjectGroupStore
+        ) -> Result<Void, APIError> {
+            guard ProjectOpenService.confirmProjectPath(
+                path,
+                appState: appState,
+                projectStore: projectStore,
+                worktreeStore: worktreeStore,
+                projectGroupStore: projectGroupStore
+            )
+            else {
+                return .failure(.invalidArguments("could not open project at path: \(path)"))
+            }
+            return .success(())
+        }
+
+        static func rename(id: String, name: String, projectStore: ProjectStore) -> Result<Void, APIError> {
+            resolveStoredProjectID(id, in: projectStore).map { projectStore.rename(id: $0, to: name) }
+        }
+
+        static func remove(id: String, projectStore: ProjectStore) -> Result<Void, APIError> {
+            resolveStoredProjectID(id, in: projectStore).map { projectStore.remove(id: $0) }
+        }
+
+        static func setColor(id: String, color: String?, projectStore: ProjectStore) -> Result<Void, APIError> {
+            if let color, ProjectIconColor.swatch(for: color) == nil {
+                return .failure(.invalidArguments("unknown color: \(color)"))
+            }
+            return resolveStoredProjectID(id, in: projectStore).map { projectStore.setIconColor(id: $0, to: color) }
+        }
+
+        static func setIcon(id: String, icon: String?, projectStore: ProjectStore) -> Result<Void, APIError> {
+            resolveStoredProjectID(id, in: projectStore).map { projectStore.setIcon(id: $0, to: icon) }
+        }
+
+        static func setWorktreesEnabled(id: String, enabled: Bool, projectStore: ProjectStore) -> Result<Void, APIError> {
+            resolveStoredProjectID(id, in: projectStore).map { projectStore.setWorktreesEnabled(id: $0, to: enabled) }
+        }
+
+        static func reorder(ids: [String], projectStore: ProjectStore) -> Result<Void, APIError> {
+            let uuids = ids.compactMap { UUID(uuidString: $0) }
+            guard uuids.count == ids.count else {
+                return .failure(.invalidArguments("invalid project id in reorder"))
+            }
+            projectStore.reorder(orderedIDs: uuids)
+            return .success(())
+        }
+
+        private static func resolveStoredProjectID(_ id: String, in projectStore: ProjectStore) -> Result<UUID, APIError> {
+            guard let uuid = UUID(uuidString: id) else {
+                return .failure(.invalidArguments("invalid project id: \(id)"))
+            }
+            guard uuid != Project.homeID else {
+                return .failure(.invalidArguments("the Home project cannot be modified"))
+            }
+            guard projectStore.storedProjects.contains(where: { $0.id == uuid }) else {
+                return .failure(.projectNotFound(id))
+            }
+            return .success(uuid)
         }
     }
 
