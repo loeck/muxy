@@ -657,8 +657,7 @@ enum MuxyAPI {
                 return .failure(.projectNotFound(projectIdentifier ?? ""))
             }
             let infos = worktreeStore.list(for: project.id).map { worktree in
-                let isActive = appState.activeProjectID == project.id
-                    && appState.activeWorktreeID[project.id] == worktree.id
+                let isActive = appState.activeWorktreeID[project.id] == worktree.id
                 return WorktreeInfo(
                     id: worktree.id,
                     name: worktree.name,

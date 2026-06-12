@@ -91,6 +91,46 @@ struct MuxyAPIGitWorktreeTests {
     }
 }
 
+@Suite("MuxyAPI.Worktrees list")
+@MainActor
+struct MuxyAPIWorktreesListTests {
+    @Test("a project's active worktree is reported even when the project is not the active project")
+    func activeWorktreeIsProjectScoped() {
+        let project = Project(name: "Repo", path: "/tmp/repo")
+        let primary = Worktree(name: project.name, path: project.path, isPrimary: true)
+        let secondary = Worktree(
+            name: "PR 42",
+            path: "/tmp/repo-pr-42",
+            branch: "pr-42",
+            source: .muxy,
+            isPrimary: false
+        )
+        let projectStore = ProjectStore(persistence: ProjectPersistenceStub())
+        projectStore.add(project)
+        let worktreeStore = WorktreeStore(
+            persistence: WorktreePersistenceStub(initial: [project.id: [primary, secondary]]),
+            projects: [project]
+        )
+        let appState = AppState(
+            selectionStore: SelectionStoreStub(),
+            terminalViews: TerminalViewRemovingStub(),
+            workspacePersistence: WorkspacePersistenceStub()
+        )
+        appState.activeProjectID = nil
+        appState.activeWorktreeID[project.id] = secondary.id
+
+        let infos = try? MuxyAPI.Worktrees.list(
+            projectIdentifier: project.id.uuidString,
+            appState: appState,
+            projectStore: projectStore,
+            worktreeStore: worktreeStore
+        ).get()
+
+        #expect(infos?.first { $0.id == secondary.id }?.isActive == true)
+        #expect(infos?.first { $0.id == primary.id }?.isActive == false)
+    }
+}
+
 private final class ProjectPersistenceStub: ProjectPersisting {
     private var projects: [Project] = []
     func loadProjects() throws -> [Project] { projects }
