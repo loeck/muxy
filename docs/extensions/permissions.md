@@ -17,7 +17,7 @@ Permissions apply only to identified callers. The host identifies itself on beha
 | `tabs:write` | `switch-tab`, `new-tab`, `next-tab`, `previous-tab`, `open-tab`. Opening a terminal tab with a startup `command` also prompts for runtime consent. |
 | `projects:read` | `list-projects` |
 | `projects:write` | `switch-project` |
-| `projects:delete` | `projects.delete`. Each call also prompts for runtime consent. |
+| `projects:delete` | `projects.delete` |
 | `worktrees:read` | `list-worktrees` |
 | `worktrees:write` | `create-worktree`, `switch-worktree`, `refresh-worktrees` |
 | `git:read` | `git.status`, `git.diff`, `git.repoInfo`, `git.log`, `git.branches`, `git.remoteBranches`, `git.currentBranch`, `git.aheadBehind`, `git.pr.info`, `git.pr.number`, `git.pr.diff`, `git.pr.list`, `git.worktrees` — see [Git](git.md). |
