@@ -20,42 +20,34 @@ struct ClaudeCodeProvider: AIProviderIntegration {
         return paths.contains { FileManager.default.isExecutableFile(atPath: $0) }
     }
 
+    private static let hookEvents: [(settingsKey: String, event: String)] = [
+        ("Stop", "stop"),
+        ("Notification", "notification"),
+        ("UserPromptSubmit", "user-prompt-submit"),
+        ("PreToolUse", "pre-tool-use"),
+    ]
+
     func install(hookScriptPath: String) throws {
         let settings = try Self.readSettings()
         let hooks = settings["hooks"] as? [String: Any] ?? [:]
 
-        let stopCommand = Self.hookCommand(hookScript: hookScriptPath, event: "stop")
-        let notificationCommand = Self.hookCommand(hookScript: hookScriptPath, event: "notification")
-        let userPromptCommand = Self.hookCommand(hookScript: hookScriptPath, event: "user-prompt-submit")
+        let commands = Self.hookEvents.map {
+            (settingsKey: $0.settingsKey, command: Self.hookCommand(hookScript: hookScriptPath, event: $0.event))
+        }
 
-        let stopMatches = Self.muxyHookMatches(entries: hooks["Stop"] as? [[String: Any]], expectedCommand: stopCommand)
-        let notificationMatches = Self.muxyHookMatches(
-            entries: hooks["Notification"] as? [[String: Any]],
-            expectedCommand: notificationCommand
-        )
-        let userPromptMatches = Self.muxyHookMatches(
-            entries: hooks["UserPromptSubmit"] as? [[String: Any]],
-            expectedCommand: userPromptCommand
-        )
-
-        guard !stopMatches || !notificationMatches || !userPromptMatches else { return }
+        let alreadyInstalled = commands.allSatisfy {
+            Self.muxyHookMatches(entries: hooks[$0.settingsKey] as? [[String: Any]], expectedCommand: $0.command)
+        }
+        guard !alreadyInstalled else { return }
 
         var updatedSettings = settings
         var updatedHooks = hooks
-
-        let stopHook = Self.buildHookEntry(command: stopCommand)
-        let notificationHook = Self.buildHookEntry(command: notificationCommand)
-        let userPromptHook = Self.buildHookEntry(command: userPromptCommand)
-
-        updatedHooks["Stop"] = Self.mergeHookArray(existing: hooks["Stop"] as? [[String: Any]], muxyHook: stopHook)
-        updatedHooks["Notification"] = Self.mergeHookArray(
-            existing: hooks["Notification"] as? [[String: Any]],
-            muxyHook: notificationHook
-        )
-        updatedHooks["UserPromptSubmit"] = Self.mergeHookArray(
-            existing: hooks["UserPromptSubmit"] as? [[String: Any]],
-            muxyHook: userPromptHook
-        )
+        for entry in commands {
+            updatedHooks[entry.settingsKey] = Self.mergeHookArray(
+                existing: hooks[entry.settingsKey] as? [[String: Any]],
+                muxyHook: Self.buildHookEntry(command: entry.command)
+            )
+        }
 
         updatedSettings["hooks"] = updatedHooks
         try Self.writeSettings(updatedSettings)
@@ -66,7 +58,7 @@ struct ClaudeCodeProvider: AIProviderIntegration {
         var settings = try Self.readSettings()
         guard var hooks = settings["hooks"] as? [String: Any] else { return }
 
-        for key in ["Stop", "Notification", "UserPromptSubmit"] {
+        for key in Self.hookEvents.map(\.settingsKey) {
             guard var entries = hooks[key] as? [[String: Any]] else { continue }
             entries.removeAll { Self.isMuxyHookEntry($0) }
             if entries.isEmpty {

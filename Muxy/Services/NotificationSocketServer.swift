@@ -265,8 +265,12 @@ final class NotificationSocketServer: @unchecked Sendable {
         let status: AgentStatus
     }
 
+    private static func pipeFields(_ message: String) -> [String] {
+        message.split(separator: "|", maxSplits: 3, omittingEmptySubsequences: false).map(String.init)
+    }
+
     static func parseAgentStatusMessage(_ message: String) -> AgentStatusMessage? {
-        let parts = message.split(separator: "|", maxSplits: 3, omittingEmptySubsequences: false).map(String.init)
+        let parts = pipeFields(message)
         guard parts.count == 4,
               parts[0] == "agent_status",
               !parts[1].isEmpty,
@@ -277,7 +281,7 @@ final class NotificationSocketServer: @unchecked Sendable {
     }
 
     static func parseInvokeResult(_ message: String) -> InvokeResult? {
-        let parts = message.split(separator: "|", maxSplits: 3, omittingEmptySubsequences: false).map(String.init)
+        let parts = pipeFields(message)
         guard parts.count >= 3, parts[0] == "invoke-result", !parts[1].isEmpty else { return nil }
         let status = parts[2]
         guard status == "ok" || status == "err" else { return nil }
@@ -666,7 +670,7 @@ final class NotificationSocketServer: @unchecked Sendable {
             return
         }
 
-        if let statusMessage = Self.parseAgentStatusMessage(message) {
+        if session.extensionID == nil, let statusMessage = Self.parseAgentStatusMessage(message) {
             DispatchQueue.main.async { [weak self] in
                 self?.dispatchAgentStatus(statusMessage)
             }

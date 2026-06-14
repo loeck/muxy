@@ -4,6 +4,14 @@ enum AgentStatus: String, Equatable, Codable {
     case working
     case waiting
     case idle
+
+    var priority: Int {
+        switch self {
+        case .working: 2
+        case .waiting: 1
+        case .idle: 0
+        }
+    }
 }
 
 @MainActor
@@ -18,9 +26,21 @@ final class AgentStatusStore {
         let providerID: String
         let status: AgentStatus
         let updatedAt: Date
+
+        func withStatus(_ newStatus: AgentStatus) -> Entry {
+            Entry(
+                worktreeID: worktreeID,
+                projectID: projectID,
+                paneID: paneID,
+                providerID: providerID,
+                status: newStatus,
+                updatedAt: Date()
+            )
+        }
     }
 
     private(set) var entries: [UUID: Entry] = [:]
+    private var panes: [UUID: Entry] = [:]
 
     private init() {}
 
@@ -33,15 +53,7 @@ final class AgentStatusStore {
               )
         else { return }
 
-        if let existing = entries[context.worktreeID],
-           existing.status == status,
-           existing.paneID == paneID,
-           existing.providerID == providerID
-        {
-            return
-        }
-
-        let entry = Entry(
+        panes[paneID] = Entry(
             worktreeID: context.worktreeID,
             projectID: context.projectID,
             paneID: paneID,
@@ -49,22 +61,42 @@ final class AgentStatusStore {
             status: status,
             updatedAt: Date()
         )
-        entries[context.worktreeID] = entry
-        broadcast(entry)
+        recompute(worktreeID: context.worktreeID)
     }
 
     func removePane(_ paneID: UUID) {
-        for (worktreeID, entry) in entries where entry.paneID == paneID {
-            entries.removeValue(forKey: worktreeID)
-            broadcast(Entry(
-                worktreeID: entry.worktreeID,
-                projectID: entry.projectID,
-                paneID: entry.paneID,
-                providerID: entry.providerID,
-                status: .idle,
-                updatedAt: Date()
-            ))
+        guard let removed = panes.removeValue(forKey: paneID) else { return }
+        recompute(worktreeID: removed.worktreeID)
+    }
+
+    nonisolated static func winningEntry(among candidates: [Entry]) -> Entry? {
+        candidates.max { lhs, rhs in
+            lhs.status.priority != rhs.status.priority
+                ? lhs.status.priority < rhs.status.priority
+                : lhs.updatedAt < rhs.updatedAt
         }
+    }
+
+    private func recompute(worktreeID: UUID) {
+        let candidates = panes.values.filter { $0.worktreeID == worktreeID }
+
+        guard let aggregate = Self.winningEntry(among: candidates) else {
+            if let previous = entries.removeValue(forKey: worktreeID) {
+                broadcast(previous.withStatus(.idle))
+            }
+            return
+        }
+
+        if let existing = entries[worktreeID],
+           existing.status == aggregate.status,
+           existing.paneID == aggregate.paneID,
+           existing.providerID == aggregate.providerID
+        {
+            return
+        }
+
+        entries[worktreeID] = aggregate
+        broadcast(aggregate)
     }
 
     private func broadcast(_ entry: Entry) {

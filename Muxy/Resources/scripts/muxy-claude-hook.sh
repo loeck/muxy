@@ -33,7 +33,7 @@ extract_last_message() {
 }
 
 case "$event" in
-    user-prompt-submit)
+    user-prompt-submit | pre-tool-use)
         send_status "working"
         ;;
     notification)

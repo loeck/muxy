@@ -63,4 +63,37 @@ struct AgentStatusTests {
         #expect(payload["providerID"] == "claude")
         #expect(payload["status"] == "waiting")
     }
+
+    private func entry(_ status: AgentStatus, worktreeID: UUID, at offset: TimeInterval) -> AgentStatusStore.Entry {
+        AgentStatusStore.Entry(
+            worktreeID: worktreeID,
+            projectID: UUID(),
+            paneID: UUID(),
+            providerID: "claude",
+            status: status,
+            updatedAt: Date(timeIntervalSinceReferenceDate: offset)
+        )
+    }
+
+    @Test("returns nil when no pane contributes to the worktree")
+    func aggregateEmpty() {
+        #expect(AgentStatusStore.winningEntry(among: []) == nil)
+    }
+
+    @Test("the most active pane wins regardless of recency")
+    func aggregatePrefersMostActive() {
+        let worktreeID = UUID()
+        let working = entry(.working, worktreeID: worktreeID, at: 0)
+        let waiting = entry(.waiting, worktreeID: worktreeID, at: 100)
+        let idle = entry(.idle, worktreeID: worktreeID, at: 200)
+        #expect(AgentStatusStore.winningEntry(among: [idle, waiting, working]) == working)
+    }
+
+    @Test("ties on status break toward the most recent pane")
+    func aggregateBreaksTiesByRecency() {
+        let worktreeID = UUID()
+        let older = entry(.working, worktreeID: worktreeID, at: 0)
+        let newer = entry(.working, worktreeID: worktreeID, at: 100)
+        #expect(AgentStatusStore.winningEntry(among: [older, newer]) == newer)
+    }
 }
