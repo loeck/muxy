@@ -45,6 +45,7 @@ struct Sidebar: View {
     @Environment(RemoteDeviceStore.self) private var remoteDeviceStore
     @Environment(WorktreeStore.self) private var worktreeStore
     @State private var dragState = ProjectDragState()
+    @State private var isExternalDropTargeted = false
     @State private var projectPendingRemoval: Project?
     @State private var extensionStore = ExtensionStore.shared
     let expanded: Bool
@@ -234,6 +235,23 @@ struct Sidebar: View {
             }
         }
         .coordinateSpace(name: "sidebar")
+        .overlay {
+            if isExternalDropTargeted {
+                ExternalProjectDropHighlight()
+            }
+        }
+        .animation(.easeInOut(duration: 0.15), value: isExternalDropTargeted)
+        .onDrop(of: [.fileURL], isTargeted: $isExternalDropTargeted) { providers in
+            ProjectSidebarDropHandler.handle(providers: providers) { path in
+                ProjectOpenService.confirmProjectPathResult(
+                    path,
+                    appState: appState,
+                    projectStore: projectStore,
+                    worktreeStore: worktreeStore,
+                    projectGroupStore: projectGroupStore
+                )
+            }
+        }
     }
 
     @ViewBuilder
@@ -404,6 +422,20 @@ private struct ProjectDragState {
     var draggedID: UUID?
     var frames: [UUID: CGRect] = [:]
     var lastReorderTargetID: UUID?
+}
+
+private struct ExternalProjectDropHighlight: View {
+    var body: some View {
+        RoundedRectangle(cornerRadius: UIMetrics.radiusLG)
+            .fill(MuxyTheme.accent.opacity(0.15))
+            .overlay(
+                RoundedRectangle(cornerRadius: UIMetrics.radiusLG)
+                    .strokeBorder(MuxyTheme.accent.opacity(0.6), lineWidth: 2)
+            )
+            .padding(UIMetrics.spacing2)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
 }
 
 private struct AddProjectButton: View {
