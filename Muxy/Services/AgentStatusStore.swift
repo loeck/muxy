@@ -26,17 +26,6 @@ final class AgentStatusStore {
         let providerID: String
         let status: AgentStatus
         let updatedAt: Date
-
-        func withStatus(_ newStatus: AgentStatus) -> Entry {
-            Entry(
-                worktreeID: worktreeID,
-                projectID: projectID,
-                paneID: paneID,
-                providerID: providerID,
-                status: newStatus,
-                updatedAt: Date()
-            )
-        }
     }
 
     private(set) var entries: [UUID: Entry] = [:]
@@ -45,6 +34,10 @@ final class AgentStatusStore {
     private init() {}
 
     func update(paneID: UUID, providerID: String, status: AgentStatus, appState: AppState) {
+        if let existing = panes[paneID], existing.status == status, existing.providerID == providerID {
+            return
+        }
+
         guard let worktreeStore = NotificationStore.shared.worktreeStore,
               let context = NotificationNavigator.resolveContext(
                   for: paneID,
@@ -81,9 +74,14 @@ final class AgentStatusStore {
         let candidates = panes.values.filter { $0.worktreeID == worktreeID }
 
         guard let aggregate = Self.winningEntry(among: candidates) else {
-            if let previous = entries.removeValue(forKey: worktreeID) {
-                broadcast(previous.withStatus(.idle))
-            }
+            guard let previous = entries.removeValue(forKey: worktreeID), previous.status != .idle else { return }
+            broadcast(
+                worktreeID: previous.worktreeID,
+                projectID: previous.projectID,
+                paneID: previous.paneID,
+                providerID: previous.providerID,
+                status: .idle
+            )
             return
         }
 
@@ -96,18 +94,30 @@ final class AgentStatusStore {
         }
 
         entries[worktreeID] = aggregate
-        broadcast(aggregate)
+        broadcast(
+            worktreeID: aggregate.worktreeID,
+            projectID: aggregate.projectID,
+            paneID: aggregate.paneID,
+            providerID: aggregate.providerID,
+            status: aggregate.status
+        )
     }
 
-    private func broadcast(_ entry: Entry) {
+    private func broadcast(
+        worktreeID: UUID,
+        projectID: UUID,
+        paneID: UUID,
+        providerID: String,
+        status: AgentStatus
+    ) {
         NotificationSocketServer.shared.broadcast(event: ExtensionEvent(
             name: ExtensionEventName.agentStatus,
             payload: Self.eventPayload(
-                worktreeID: entry.worktreeID,
-                projectID: entry.projectID,
-                paneID: entry.paneID,
-                providerID: entry.providerID,
-                status: entry.status
+                worktreeID: worktreeID,
+                projectID: projectID,
+                paneID: paneID,
+                providerID: providerID,
+                status: status
             )
         ))
     }

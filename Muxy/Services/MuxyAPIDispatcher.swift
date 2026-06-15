@@ -708,14 +708,14 @@ enum MuxyAPIDispatcher {
         ]
     }
 
-    private static func agentDict(_ agent: AgentInfo) -> [String: Any] {
-        [
-            "worktreeID": agent.worktreeID.uuidString,
-            "projectID": agent.projectID.uuidString,
-            "paneID": agent.paneID.uuidString,
-            "providerID": agent.providerID,
-            "status": agent.status,
-        ]
+    private static func agentDict(_ agent: AgentInfo) -> [String: String] {
+        AgentStatusStore.eventPayload(
+            worktreeID: agent.worktreeID,
+            projectID: agent.projectID,
+            paneID: agent.paneID,
+            providerID: agent.providerID,
+            status: agent.status
+        )
     }
 
     private static func paneDict(_ pane: PaneInfo) -> [String: Any] {

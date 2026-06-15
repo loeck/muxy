@@ -72,7 +72,7 @@ struct AgentInfo: Equatable {
     let projectID: UUID
     let paneID: UUID
     let providerID: String
-    let status: String
+    let status: AgentStatus
 }
 
 struct TabInfo: Equatable {
@@ -783,7 +783,7 @@ enum MuxyAPI {
                     projectID: entry.projectID,
                     paneID: entry.paneID,
                     providerID: entry.providerID,
-                    status: entry.status.rawValue
+                    status: entry.status
                 )
             }
         }
