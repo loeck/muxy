@@ -145,6 +145,9 @@ struct MuxyApp: App {
                     projectStore.onProjectRemoved = { [projectGroupStore] projectID in
                         projectGroupStore.removeProjectFromAllGroups(projectID: projectID)
                     }
+                    appState.onProjectSelected = { [projectStore] projectID in
+                        projectStore.markActive(id: projectID)
+                    }
                 }
         }
         .windowStyle(HiddenTitleBarWindowStyle())
@@ -169,13 +172,13 @@ struct MuxyApp: App {
         didStartDeferredServices = true
         Task { @MainActor in
             await Task.yield()
+            AIProviderRegistry.shared.prepareForInstallation()
             MuxyFileStorage.removeFile(named: "terminal-sessions.json")
             SettingsJSONStore.beginAutomaticUserSettingsSync()
             try? await Task.sleep(for: .seconds(2))
             UpdateService.shared.start()
             TerminalOfflineService.shared.start()
-            AIProviderRegistry.shared.installAll()
-            LoginShellPath.hydrateInBackground()
+            await AIProviderRegistry.shared.installAll()
             await NotificationSocketServer.shared.awaitReady()
             ExtensionStore.shared.startAll()
             await ExtensionStore.shared.checkForUpdates()

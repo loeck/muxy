@@ -62,10 +62,13 @@ final class AppState {
     private let terminalViews: any TerminalViewRemoving
     private let workspacePersistence: any WorkspacePersisting
     var onProjectsEmptied: (([UUID]) -> Void)?
+    var onProjectSelected: ((UUID) -> Void)?
 
     var activeProjectID: UUID?
 
     var activeWorktreeID: [UUID: UUID] = [:]
+
+    private(set) var worktreeMRU: [WorktreeKey] = []
 
     struct PendingTabClose: Equatable {
         let projectID: UUID
@@ -140,6 +143,7 @@ final class AppState {
         else { return }
         activeProjectID = id
         recordCurrentNavigationEntry()
+        recordActiveWorktreeUsage()
     }
 
     func saveWorkspaces() {
@@ -164,6 +168,14 @@ final class AppState {
         return WorktreeKey(projectID: projectID, worktreeID: worktreeID)
     }
 
+    private func recordActiveWorktreeUsage() {
+        guard let projectID = activeProjectID,
+              let key = activeWorktreeKey(for: projectID)
+        else { return }
+        worktreeMRU.removeAll { $0 == key }
+        worktreeMRU.insert(key, at: 0)
+    }
+
     func workspaceRoot(for projectID: UUID) -> SplitNode? {
         guard let key = activeWorktreeKey(for: projectID) else { return nil }
         return workspaceRoots[key]
@@ -175,11 +187,14 @@ final class AppState {
     }
 
     func selectProject(_ project: Project, worktree: Worktree) {
+        let wasActive = activeProjectID == project.id
         dispatch(.selectProject(
             projectID: project.id,
             worktreeID: worktree.id,
             worktreePath: worktree.path
         ))
+        guard !wasActive else { return }
+        onProjectSelected?(project.id)
     }
 
     func selectWorktree(projectID: UUID, worktree: Worktree) {
@@ -636,6 +651,7 @@ final class AppState {
 
         pruneNavigationHistory()
         recordCurrentNavigationEntry()
+        recordActiveWorktreeUsage()
 
         if let activeTabID = NotificationNavigator.activeTabID(appState: self) {
             NotificationStore.shared.markAsRead(tabID: activeTabID)

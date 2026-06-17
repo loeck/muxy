@@ -12,7 +12,7 @@ export default function (pi: ExtensionAPI) {
       conn.on("error", (err: any) => {
         process.stderr.write(`[muxy-pi] socket error: ${err?.message ?? err}\n`);
       });
-      conn.write(payload, () => conn.end());
+      conn.write(`${payload}\n`, () => conn.end());
       await new Promise((resolve) => {
         conn.on("close", resolve);
         setTimeout(resolve, 3000);

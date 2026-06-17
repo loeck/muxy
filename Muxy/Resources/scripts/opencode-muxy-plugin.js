@@ -70,7 +70,7 @@ async function send(socketPath, payload) {
     const { createConnection } = await import("net")
     const conn = createConnection({ path: socketPath })
     conn.on("error", () => {})
-    conn.write(payload, () => conn.end())
+    conn.write(`${payload}\n`, () => conn.end())
     await new Promise((resolve) => {
       conn.on("close", resolve)
       setTimeout(resolve, 3000)

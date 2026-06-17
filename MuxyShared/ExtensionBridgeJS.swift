@@ -200,6 +200,7 @@ public enum ExtensionBridgeJS {
             muxy.projects = {
                 list:     ()           => dispatch('projects.list', {}),
                 switchTo: (identifier) => dispatch('projects.switch', { identifier: String(identifier) }),
+                delete:   (identifier) => dispatch('projects.delete', { identifier: String(identifier) }),
             };
             muxy.worktrees = {
                 list:     (project)             => dispatch('worktrees.list', { project: project == null ? null : String(project) }),
@@ -299,6 +300,7 @@ public enum ExtensionBridgeJS {
                         project: gitProject(o),
                         filter: (o || {}).filter == null ? null : String(o.filter),
                         limit: (o || {}).limit == null ? null : Number(o.limit),
+                        checks: (o || {}).checks == null ? null : Boolean(o.checks),
                     }),
                     create: (o) => dispatch('git.pr.create', {
                         project: gitProject(o),
