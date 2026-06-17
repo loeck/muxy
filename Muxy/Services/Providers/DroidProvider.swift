@@ -10,7 +10,13 @@ struct DroidProvider: AIProviderIntegration {
 
     private static let settingsPath = NSHomeDirectory() + "/.factory/settings.json"
     private static let muxyMarker = "muxy-notification-hook"
-    private static let installedEvents = ["Stop", "Notification"]
+
+    static let hookEvents: [(settingsKey: String, event: String)] = [
+        ("Stop", "stop"),
+        ("Notification", "notification"),
+        ("UserPromptSubmit", "user-prompt-submit"),
+        ("PreToolUse", "pre-tool-use"),
+    ]
 
     func isToolInstalled() -> Bool {
         let home = NSHomeDirectory()
@@ -27,23 +33,13 @@ struct DroidProvider: AIProviderIntegration {
         let settings = try Self.readSettings()
         let hooks = settings["hooks"] as? [String: Any] ?? [:]
 
-        var allMatch = true
-        for event in Self.installedEvents {
-            let expected = Self.hookCommand(hookScript: hookScriptPath, event: event.lowercased())
-            if !Self.muxyHookMatches(entries: hooks[event] as? [[String: Any]], expectedCommand: expected) {
-                allMatch = false
-                break
-            }
+        let commands = Self.hookEvents.map {
+            (settingsKey: $0.settingsKey, command: Self.hookCommand(hookScript: hookScriptPath, event: $0.event))
         }
-        guard !allMatch else { return }
+
+        guard let updatedHooks = Self.hooks(installing: commands, into: hooks) else { return }
 
         var updatedSettings = settings
-        var updatedHooks = hooks
-        for event in Self.installedEvents {
-            let command = Self.hookCommand(hookScript: hookScriptPath, event: event.lowercased())
-            let entry = Self.buildHookEntry(command: command)
-            updatedHooks[event] = Self.mergeHookArray(existing: hooks[event] as? [[String: Any]], muxyHook: entry)
-        }
         updatedSettings["hooks"] = updatedHooks
         try Self.writeSettings(updatedSettings)
     }
@@ -51,27 +47,51 @@ struct DroidProvider: AIProviderIntegration {
     func uninstall() throws {
         guard FileManager.default.fileExists(atPath: Self.settingsPath) else { return }
         var settings = try Self.readSettings()
-        guard var hooks = settings["hooks"] as? [String: Any] else { return }
+        guard let hooks = settings["hooks"] as? [String: Any] else { return }
 
-        for key in Self.installedEvents {
-            guard var entries = hooks[key] as? [[String: Any]] else { continue }
-            entries.removeAll { Self.isMuxyHookEntry($0) }
-            if entries.isEmpty {
-                hooks.removeValue(forKey: key)
-            } else {
-                hooks[key] = entries
-            }
-        }
-
-        if hooks.isEmpty {
+        let cleaned = Self.hooks(uninstallingFrom: hooks)
+        if cleaned.isEmpty {
             settings.removeValue(forKey: "hooks")
         } else {
-            settings["hooks"] = hooks
+            settings["hooks"] = cleaned
         }
         try Self.writeSettings(settings)
     }
 
-    private static func hookCommand(hookScript: String, event: String) -> String {
+    static func hooks(
+        installing commands: [(settingsKey: String, command: String)],
+        into hooks: [String: Any]
+    ) -> [String: Any]? {
+        let alreadyInstalled = commands.allSatisfy {
+            muxyHookMatches(entries: hooks[$0.settingsKey] as? [[String: Any]], expectedCommand: $0.command)
+        }
+        guard !alreadyInstalled else { return nil }
+
+        var updatedHooks = hooks
+        for entry in commands {
+            updatedHooks[entry.settingsKey] = mergeHookArray(
+                existing: hooks[entry.settingsKey] as? [[String: Any]],
+                muxyHook: buildHookEntry(command: entry.command)
+            )
+        }
+        return updatedHooks
+    }
+
+    static func hooks(uninstallingFrom hooks: [String: Any]) -> [String: Any] {
+        var result = hooks
+        for key in hookEvents.map(\.settingsKey) {
+            guard var entries = result[key] as? [[String: Any]] else { continue }
+            entries.removeAll { isMuxyHookEntry($0) }
+            if entries.isEmpty {
+                result.removeValue(forKey: key)
+            } else {
+                result[key] = entries
+            }
+        }
+        return result
+    }
+
+    static func hookCommand(hookScript: String, event: String) -> String {
         "'\(hookScript)' \(event) # \(muxyMarker)"
     }
 

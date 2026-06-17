@@ -73,7 +73,20 @@ When an extension is reloaded or disabled, its subscriptions are dropped and re-
 | `command.<id>` | `command`, `extension` | Auto-allowed when `commands[].id == <id>` |
 | `extension.<name>` | JSON payload from emitter | Auto-allowed same-extension local event |
 
-`agent.status` reports an AI coding agent's lifecycle per worktree, driven by the provider's hooks (Claude Code today): `working` when a prompt is submitted or the agent resumes a tool, `waiting` when the agent needs attention, `idle` when it stops. `providerID` identifies the agent (e.g. `claude`). When a worktree holds several agent panes, the reported status is the most active one (`working` > `waiting` > `idle`) and `paneID` points to the pane that owns it. It fires only when the worktree status changes, and turns `idle` once the last agent pane in the worktree closes. Pair it with [`muxy.agents.list()`](permissions.md) to hydrate current statuses on load.
+`agent.status` reports an AI coding agent's lifecycle per worktree, driven by the provider's hooks: `working` when a prompt is submitted or the agent runs a tool, `waiting` when the agent needs attention, `idle` when it stops. `providerID` identifies the agent (e.g. `claude`). When a worktree holds several agent panes, the reported status is the most active one (`working` > `waiting` > `idle`) and `paneID` points to the pane that owns it. It fires only when the worktree status changes, and turns `idle` once the last agent pane in the worktree closes. Pair it with [`muxy.agents.list()`](permissions.md) to hydrate current statuses on load.
+
+Which states a provider reports depends on the hooks its CLI exposes:
+
+| Provider (`providerID`) | `working` | `waiting` | `idle` |
+| --- | --- | --- | --- |
+| Claude Code (`claude`) | ✓ | ✓ | ✓ |
+| Droid (`droid`) | ✓ | ✓ | ✓ |
+| OpenCode (`opencode`) | ✓ | ✓ | ✓ |
+| Pi (`pi`) | ✓ | — | ✓ |
+| Cursor (`cursor`) | — | ✓ | ✓ |
+| Codex (`codex`) | — | ✓ | ✓ |
+
+A `—` means the CLI's hooks have no event for that transition, so the provider never emits that state.
 
 `file.changed` fires for files under the active project/worktree root. It is debounced (~0.3s) and skips Git-internal noise (`.git/` lock files and directories); one event is delivered per changed `path`, with `projectPath` set to the watched root. Pair it with [`muxy.files`](files.md) to build a reactive file tree.
 

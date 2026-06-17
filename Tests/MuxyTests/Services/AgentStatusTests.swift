@@ -27,6 +27,18 @@ struct AgentStatusTests {
         }
     }
 
+    @Test("parses messages from every provider socket type")
+    func parsesEveryProviderSocketType() {
+        let paneID = UUID()
+        for socketType in ["claude_hook", "cursor_hook", "codex_hook", "droid_hook", "opencode", "pi"] {
+            let parsed = NotificationSocketServer.parseAgentStatusMessage(
+                "agent_status|\(socketType)|\(paneID.uuidString)|working"
+            )
+            #expect(parsed?.socketType == socketType)
+            #expect(parsed?.status == .working)
+        }
+    }
+
     @Test("rejects an unknown status")
     func rejectsUnknownStatus() {
         let message = "agent_status|claude_hook|\(UUID().uuidString)|busy"

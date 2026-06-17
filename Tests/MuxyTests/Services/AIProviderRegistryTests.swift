@@ -12,6 +12,21 @@ struct AIProviderRegistryTests {
         #expect(source == .aiProvider("claude"))
     }
 
+    @Test("notificationSource resolves every provider socket type to its id")
+    func notificationSourceResolvesEveryProvider() {
+        let expected: [String: String] = [
+            "claude_hook": "claude",
+            "cursor_hook": "cursor",
+            "codex_hook": "codex",
+            "droid_hook": "droid",
+            "opencode": "opencode",
+            "pi": "pi",
+        ]
+        for (socketType, providerID) in expected {
+            #expect(AIProviderRegistry.shared.notificationSource(for: socketType) == .aiProvider(providerID))
+        }
+    }
+
     @Test("notificationSource falls back to socket for unknown types")
     func notificationSourceFallsBackToSocket() {
         let source = AIProviderRegistry.shared.notificationSource(for: "not-a-known-type")

@@ -65,8 +65,7 @@ function consumeRecentReply(sessionID) {
   return Date.now() <= deadline
 }
 
-async function sendNotification(socketPath, paneID, body) {
-  const payload = `opencode|${paneID}|OpenCode|${sanitize(body)}`
+async function send(socketPath, payload) {
   try {
     const { createConnection } = await import("net")
     const conn = createConnection({ path: socketPath })
@@ -77,6 +76,14 @@ async function sendNotification(socketPath, paneID, body) {
       setTimeout(resolve, 3000)
     })
   } catch {}
+}
+
+async function sendNotification(socketPath, paneID, body) {
+  await send(socketPath, `opencode|${paneID}|OpenCode|${sanitize(body)}`)
+}
+
+async function sendStatus(socketPath, paneID, status) {
+  await send(socketPath, `agent_status|opencode|${paneID}|${status}`)
 }
 
 export const MuxyNotificationPlugin = async ({ client }) => ({
@@ -102,6 +109,7 @@ export const MuxyNotificationPlugin = async ({ client }) => ({
 
     if (event.type === "permission.asked") {
       if (childSessions.has(event.properties.sessionID)) return
+      await sendStatus(socketPath, paneID, "waiting")
       await sendNotification(socketPath, paneID, permissionBody(event.properties))
       return
     }
@@ -113,6 +121,7 @@ export const MuxyNotificationPlugin = async ({ client }) => ({
 
     if (event.type === "question.asked") {
       if (childSessions.has(event.properties.sessionID)) return
+      await sendStatus(socketPath, paneID, "waiting")
       await sendNotification(socketPath, paneID, questionBody(event.properties))
       return
     }
@@ -123,15 +132,21 @@ export const MuxyNotificationPlugin = async ({ client }) => ({
     }
 
     if (event.type !== "session.status") return
-    if (event.properties.status.type !== "idle") return
 
     const sessionID = event.properties.sessionID
+    if (event.properties.status.type !== "idle") {
+      if (!childSessions.has(sessionID)) await sendStatus(socketPath, paneID, "working")
+      return
+    }
+
     if (sessionsWithCancelledTurnWaitingForIdle.has(sessionID)) {
       sessionsWithCancelledTurnWaitingForIdle.delete(sessionID)
+      if (!childSessions.has(sessionID)) await sendStatus(socketPath, paneID, "idle")
       return
     }
     if (childSessions.has(sessionID)) return
     if (consumeRecentReply(sessionID)) return
+    await sendStatus(socketPath, paneID, "idle")
 
     let body = "Session completed"
 

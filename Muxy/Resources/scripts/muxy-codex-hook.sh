@@ -16,6 +16,12 @@ send_notification() {
         | nc -U "$MUXY_SOCKET_PATH" 2>/dev/null || true
 }
 
+send_status() {
+    local status="$1"
+    printf 'agent_status|codex_hook|%s|%s' "$MUXY_PANE_ID" "$status" \
+        | nc -U "$MUXY_SOCKET_PATH" 2>/dev/null || true
+}
+
 extract_last_message() {
     local msg=""
     msg=$(printf '%s' "$input" | grep -o '"last_assistant_message":"[^"]*"' | head -1 | cut -d'"' -f4)
@@ -28,9 +34,11 @@ extract_last_message() {
 
 case "$event" in
     notification)
+        send_status "waiting"
         send_notification "codex_hook" "Codex" "Needs attention"
         ;;
     stop)
+        send_status "idle"
         body=$(extract_last_message)
         send_notification "codex_hook" "Codex" "$body"
         ;;

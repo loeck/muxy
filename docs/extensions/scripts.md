@@ -1,6 +1,6 @@
 # Inline Scripts (`runScript` Commands)
 
-A palette command with `action.kind = "runScript"` runs a JavaScript file in an in-process JavaScriptCore context when the user picks it. The script gets a **synchronous** `muxy.*` API: it can read and act on workspace state (tabs, panes, projects, worktrees, files, git), run shell commands, and present native UI (dialogs, modals, toasts, notifications, topbar/status-bar items) — all without a rendering surface. Requires the `commands:run-script` permission.
+A palette command with `action.kind = "runScript"` runs a JavaScript file in an in-process JavaScriptCore context when the user picks it. The script gets a **synchronous** `muxy.*` API: it can read and act on workspace state (tabs, panes, projects, worktrees, agents, files, git), run shell commands, and present native UI (dialogs, modals, toasts, notifications, topbar/status-bar items) — all without a rendering surface. Requires the `commands:run-script` permission.
 
 ```json
 {
@@ -89,6 +89,7 @@ muxy.tabs.{list, switchTo, new, next, previous, open}
 muxy.panes.{list, send, sendKeys, readScreen, close, rename}
 muxy.projects.{list, switchTo}
 muxy.worktrees.{list, switchTo, refresh}
+muxy.agents.list()                                              // requires agents:read
 muxy.files.{list, read, stat, write, mkdir, rename, move, delete}
 muxy.git.{status, diff, log, branches, commit, push, pull, …}   // full git surface, incl. git.pr.*, git.branch.*, git.worktree.*, git.tag.*
 muxy.exec(argv, options?) / muxy.exec({ shell, ... })           // requires commands:exec
