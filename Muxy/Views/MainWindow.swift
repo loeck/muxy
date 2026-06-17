@@ -68,6 +68,9 @@ struct MainWindow: View {
         .defaultPosition
     @AppStorage(RichInputPreferences.broadcastKey) private var richInputBroadcast = RichInputPreferences.defaultBroadcast
     @State private var richInputStates: [WorktreeKey: RichInputState] = [:]
+    @State private var visitedWorktreeKeys: Set<WorktreeKey> = []
+    @AppStorage(WorktreeListPreferences.orderByMRUKey)
+    private var orderWorktreesByMRU = WorktreeListPreferences.defaultOrderByMRU
     @State private var showTerminalOmnibox = false
     @State private var terminalOmniboxLaunchScope = TerminalOmniboxLaunchScope.openTabs
     @State private var showProjectPicker = false
@@ -216,12 +219,15 @@ struct MainWindow: View {
         ))
         .onChange(of: worktreeKeysSignature) {
             pruneWorktreeStates()
+            pruneVisitedWorktreeKeys()
         }
         .onChange(of: activeWorktreeSignature) {
             updateWorkspaceFileWatcher()
+            recordVisitedActiveWorktree()
         }
         .task {
             updateWorkspaceFileWatcher()
+            recordVisitedActiveWorktree()
         }
         .modifier(TabCloseConfirmationObserver(
             lastTab: appState.pendingLastTabClose != nil,
@@ -673,7 +679,7 @@ struct MainWindow: View {
     }
 
     private var terminalOmniboxWorktrees: [TerminalOmniboxWorktreeItem] {
-        omniboxProjects.flatMap { project in
+        let items = omniboxProjects.flatMap { project in
             worktreeStore.list(for: project.id).map { worktree in
                 TerminalOmniboxWorktreeItem(
                     projectID: project.id,
@@ -685,6 +691,17 @@ struct MainWindow: View {
                 )
             }
         }
+        guard orderWorktreesByMRU else { return items }
+        var mruRank: [WorktreeKey: Int] = [:]
+        for (index, key) in appState.worktreeMRU.enumerated() {
+            mruRank[key] = index
+        }
+        return items.enumerated().sorted { lhs, rhs in
+            let lhsRank = mruRank[WorktreeKey(projectID: lhs.element.projectID, worktreeID: lhs.element.worktreeID)] ?? Int.max
+            let rhsRank = mruRank[WorktreeKey(projectID: rhs.element.projectID, worktreeID: rhs.element.worktreeID)] ?? Int.max
+            if lhsRank != rhsRank { return lhsRank < rhsRank }
+            return lhs.offset < rhs.offset
+        }.map(\.element)
     }
 
     private var terminalOmniboxWorkspaces: [TerminalOmniboxWorkspaceItem] {
@@ -929,10 +946,26 @@ struct MainWindow: View {
     }
 
     private func mountedWorktreeKeys(for project: Project) -> [WorktreeKey] {
-        guard let activeKey = appState.activeWorktreeKey(for: project.id),
-              appState.workspaceRoots[activeKey] != nil
-        else { return [] }
-        return [activeKey]
+        var keys = visitedWorktreeKeys.filter {
+            $0.projectID == project.id && appState.workspaceRoots[$0] != nil
+        }
+        if let activeKey = appState.activeWorktreeKey(for: project.id),
+           appState.workspaceRoots[activeKey] != nil
+        {
+            keys.insert(activeKey)
+        }
+        return keys.sorted { $0.worktreeID.uuidString < $1.worktreeID.uuidString }
+    }
+
+    private func recordVisitedActiveWorktree() {
+        guard let projectID = appState.activeProjectID,
+              let key = appState.activeWorktreeKey(for: projectID)
+        else { return }
+        visitedWorktreeKeys.insert(key)
+    }
+
+    private func pruneVisitedWorktreeKeys() {
+        visitedWorktreeKeys = visitedWorktreeKeys.filter { appState.workspaceRoots[$0] != nil }
     }
 
     private var isTerminalPaneFocused: Bool {

@@ -239,6 +239,22 @@ enum MuxyAPIDispatcher {
                 worktreeStore: worktreeStore
             ))
             return NSNull()
+        case "projects.delete":
+            guard let projectStore = context.projectStore,
+                  let worktreeStore = context.worktreeStore,
+                  let projectGroupStore = context.projectGroupStore
+            else { throw APIError.projectStoreUnavailable }
+            try await unwrap(MuxyAPI.Projects.delete(
+                identifier: stringArg(args, "identifier"),
+                context: MuxyAPI.Projects.Context(
+                    extensionID: context.extensionID,
+                    appState: context.appState,
+                    projectStore: projectStore,
+                    worktreeStore: worktreeStore,
+                    projectGroupStore: projectGroupStore
+                )
+            ))
+            return NSNull()
         case "worktrees.list":
             guard let projectStore = context.projectStore,
                   let worktreeStore = context.worktreeStore
@@ -430,6 +446,7 @@ enum MuxyAPIDispatcher {
                 projectIdentifier: project,
                 filter: prListFilter(args["filter"] as? String),
                 limit: intArg(args, "limit") ?? 100,
+                includeChecks: boolArg(args, "checks") ?? true,
                 context: git
             )).map(GitDTO.prListItem)
         case "git.worktrees":
@@ -749,6 +766,12 @@ enum MuxyAPIDispatcher {
     private static func intArg(_ args: [String: Any], _ key: String) -> Int? {
         if let value = args[key] as? Int { return value }
         if let value = args[key] as? NSNumber { return value.intValue }
+        return nil
+    }
+
+    private static func boolArg(_ args: [String: Any], _ key: String) -> Bool? {
+        if let value = args[key] as? Bool { return value }
+        if let value = args[key] as? NSNumber { return value.boolValue }
         return nil
     }
 
