@@ -85,7 +85,8 @@ struct MuxyNotificationHooksTests {
                 .appendingPathComponent("Muxy/Resources/scripts/opencode-muxy-plugin.js"),
             encoding: .utf8
         )
-        #expect(contents.contains("const payload = `opencode|${paneID}|OpenCode|${sanitize(body)}\\n`"))
+        #expect(contents.contains("send(socketPath, `opencode|${paneID}|OpenCode|${sanitize(body)}`)"))
+        #expect(contents.contains("conn.write(`${payload}\\n`"))
     }
 
     @Test("Pi extension terminates socket notification payloads with newline")
@@ -95,15 +96,19 @@ struct MuxyNotificationHooksTests {
                 .appendingPathComponent("Muxy/Resources/scripts/muxy-pi-extension.ts"),
             encoding: .utf8
         )
-        #expect(contents.contains("const payload = `pi|${paneID}|Pi|${body}\\n`"))
+        #expect(contents.contains("send(`pi|${paneID}|Pi|${body}`)"))
+        #expect(contents.contains("conn.write(`${payload}\\n`"))
     }
 
     @Test("shell hooks send newline terminated payloads to socket")
     func shellHooksSendNewlineTerminatedPayloadsToSocket() throws {
         for sample in Self.shellHookSamples {
-            let payload = try Self.runShellHook(sample)
-            #expect(payload.hasSuffix("\n"))
-            #expect(payload.contains("|\(Self.paneID)|"))
+            let payloads = try Self.runShellHook(sample)
+            #expect(!payloads.isEmpty)
+            for payload in payloads {
+                #expect(payload.hasSuffix("\n"))
+                #expect(payload.contains("|\(Self.paneID)|"))
+            }
         }
     }
 
@@ -147,7 +152,7 @@ struct MuxyNotificationHooksTests {
         let input: String
     }
 
-    private static func runShellHook(_ sample: ShellHookSample) throws -> String {
+    private static func runShellHook(_ sample: ShellHookSample) throws -> [String] {
         let socketPath = URL(fileURLWithPath: "/tmp")
             .appendingPathComponent("muxy-hook-\(UUID().uuidString).sock")
             .path
@@ -182,18 +187,31 @@ struct MuxyNotificationHooksTests {
         stdin.fileHandleForWriting.write(Data(sample.input.utf8))
         try stdin.fileHandleForWriting.close()
 
-        let accepted = try acceptConnection(listener)
-        let payload: Data
-        do {
-            payload = try readPayload(from: accepted)
-            close(accepted)
-        } catch {
-            close(accepted)
-            throw error
-        }
+        let payloads = drainConnections(listener, while: process)
         try waitForProcess(process)
         #expect(process.terminationStatus == 0)
-        return String(decoding: payload, as: UTF8.self)
+        return payloads
+    }
+
+    private static func drainConnections(_ listener: Int32, while process: Process) -> [String] {
+        var payloads: [String] = []
+        let deadline = Date().addingTimeInterval(10)
+        while Date() < deadline {
+            var event = pollfd(fd: listener, events: Int16(POLLIN), revents: 0)
+            let ready = poll(&event, 1, 500)
+            if ready > 0 {
+                let accepted = accept(listener, nil, nil)
+                guard accepted >= 0 else { continue }
+                let data = (try? readPayload(from: accepted)) ?? Data()
+                close(accepted)
+                if !data.isEmpty {
+                    payloads.append(String(decoding: data, as: UTF8.self))
+                }
+                continue
+            }
+            if !process.isRunning { break }
+        }
+        return payloads
     }
 
     private static func bindListener(at path: String) throws -> Int32 {
@@ -221,15 +239,6 @@ struct MuxyNotificationHooksTests {
             throw POSIXError(.EADDRINUSE)
         }
         return descriptor
-    }
-
-    private static func acceptConnection(_ listener: Int32) throws -> Int32 {
-        var event = pollfd(fd: listener, events: Int16(POLLIN), revents: 0)
-        let ready = poll(&event, 1, 3_000)
-        guard ready > 0 else { throw POSIXError(.ETIMEDOUT) }
-        let accepted = accept(listener, nil, nil)
-        guard accepted >= 0 else { throw POSIXError(.ECONNABORTED) }
-        return accepted
     }
 
     private static func readPayload(from descriptor: Int32) throws -> Data {
