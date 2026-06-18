@@ -5,6 +5,19 @@ set -euo pipefail
 root="${0:A:h:h}"
 binary="$root/.build/debug/Muxy"
 
+args=()
+for arg in "$@"; do
+  case "$arg" in
+    --hooks | -H)
+      export FF_AI_HOOKS=1
+      print -P "%F{yellow}AI hooks enabled%f — this dev build now owns the ~/.<provider> hook configs (pointing at .build/debug). Relaunch the release app to restore its hooks."
+      ;;
+    *)
+      args+=("$arg")
+      ;;
+  esac
+done
+
 needs_build=false
 
 if [[ ! -x "$binary" ]]; then
@@ -28,4 +41,4 @@ if [[ "$needs_build" == true ]]; then
   swift build --product Muxy --skip-update
 fi
 
-exec "$binary" "$@"
+exec "$binary" "${args[@]}"
