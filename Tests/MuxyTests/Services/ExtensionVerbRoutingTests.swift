@@ -30,6 +30,17 @@ struct ExtensionVerbRoutingTests {
         #expect(MuxyAPI.Permissions.required(for: "toast") == .notificationsWrite)
     }
 
+    @Test("agent.status and file.changed events require their read permission")
+    func gatedEventsRequireReadPermission() {
+        #expect(MuxyAPI.Permissions.required(forEvent: ExtensionEventName.agentStatus) == .agentsRead)
+        #expect(MuxyAPI.Permissions.required(forEvent: ExtensionEventName.fileChanged) == .filesRead)
+    }
+
+    @Test("ungated events require no permission")
+    func ungatedEventsRequireNoPermission() {
+        #expect(MuxyAPI.Permissions.required(forEvent: ExtensionEventName.paneFocused) == nil)
+    }
+
     @Test("MuxyAPI verbNames includes the legacy CLI verbs")
     func verbNamesIncludesLegacyVerbs() {
         let verbs = MuxyAPI.Permissions.verbNames

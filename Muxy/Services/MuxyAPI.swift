@@ -172,6 +172,10 @@ enum MuxyAPI {
             verbPermissions[canonical(verb)]
         }
 
+        static func required(forEvent event: String) -> ExtensionPermission? {
+            eventPermissions[event]
+        }
+
         static func canonical(_ verb: String) -> String {
             cliAliases[verb] ?? verb
         }
@@ -356,6 +360,11 @@ enum MuxyAPI {
             "topbar.set": .panelsWrite,
             "statusbar.set": .panelsWrite,
             "exec": .commandsExec,
+        ]
+
+        private static let eventPermissions: [String: ExtensionPermission] = [
+            ExtensionEventName.agentStatus: .agentsRead,
+            ExtensionEventName.fileChanged: .filesRead,
         ]
     }
 

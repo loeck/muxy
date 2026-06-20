@@ -221,6 +221,11 @@ final class ExtensionBridgeHandler: NSObject, WKScriptMessageHandlerWithReply, B
         guard allowedEvents.contains(event) || commandEvents.contains(event) else {
             throw APIError.invalidArguments("event \(event) not declared in manifest")
         }
+        if let required = MuxyAPI.Permissions.required(forEvent: event),
+           !ExtensionStore.shared.extensionHasPermission(id: extensionID, permission: required)
+        {
+            throw APIError.underlying("permission denied (\(required.rawValue))")
+        }
         guard eventObservers[event] == nil else { return event }
         let token = NotificationSocketServer.shared.addInProcessObserver { [weak self] incoming in
             guard incoming.name == event else { return }

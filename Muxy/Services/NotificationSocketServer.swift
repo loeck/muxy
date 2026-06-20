@@ -710,7 +710,9 @@ final class NotificationSocketServer: @unchecked Sendable {
     @MainActor
     private func dispatchAgentStatus(_ message: AgentStatusMessage) {
         guard let appState = NotificationStore.shared.appState else { return }
-        let providerID = AIProviderRegistry.shared.notificationSource(for: message.socketType).key
+        guard case let .aiProvider(providerID) = AIProviderRegistry.shared.notificationSource(for: message.socketType) else {
+            return
+        }
         AgentStatusStore.shared.update(
             paneID: message.paneID,
             providerID: providerID,
