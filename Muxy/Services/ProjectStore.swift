@@ -58,6 +58,12 @@ final class ProjectStore {
         save()
     }
 
+    func setPinned(id: UUID, to pinned: Bool) {
+        guard let index = storedProjects.firstIndex(where: { $0.id == id }) else { return }
+        storedProjects[index].isPinned = pinned
+        save()
+    }
+
     func setWorktreesEnabled(id: UUID, to enabled: Bool) {
         guard let index = storedProjects.firstIndex(where: { $0.id == id }) else { return }
         storedProjects[index].worktreesEnabled = enabled

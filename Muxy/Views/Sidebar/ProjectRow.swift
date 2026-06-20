@@ -13,6 +13,7 @@ struct ProjectRow: View {
     let onSetIcon: (String?) -> Void
     let onSetIconColor: (String?) -> Void
     let onSetWorktreesEnabled: (Bool) -> Void
+    let onSetPinned: (Bool) -> Void
 
     @Environment(AppState.self) private var appState
     @Environment(WorktreeStore.self) private var worktreeStore
@@ -160,6 +161,12 @@ struct ProjectRow: View {
 
     @ViewBuilder
     private var projectContextMenu: some View {
+        if !project.isRemote, !project.isHome {
+            Button(project.isPinned ? "Unpin" : "Pin") {
+                onSetPinned(!project.isPinned)
+            }
+            Divider()
+        }
         Button("Set Logo...") { pickLogoImage() }
         if project.logo != nil {
             Button("Remove Logo") { onSetLogo(nil) }

@@ -25,6 +25,7 @@ struct ProjectTests {
 
         #expect(project.preferredWorktreeParentPath == nil)
         #expect(!project.worktreesEnabled)
+        #expect(!project.isPinned)
     }
 
     @Test("new projects default to worktrees disabled")
@@ -32,6 +33,20 @@ struct ProjectTests {
         let project = Project(name: "Repo", path: "/tmp/repo")
 
         #expect(!project.worktreesEnabled)
+    }
+
+    @Test("isPinned survives an encode/decode round-trip")
+    func isPinnedRoundTrips() throws {
+        var project = Project(name: "Repo", path: "/tmp/repo")
+        project.isPinned = true
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let decoded = try decoder.decode(Project.self, from: encoder.encode(project))
+
+        #expect(decoded.isPinned)
     }
 
     @Test("worktreesEnabled survives an encode/decode round-trip")

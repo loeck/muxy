@@ -223,6 +223,13 @@ struct Sidebar: View {
         projectGroupStore.displayProjects(localProjects: projectStore.storedProjects, sortMode: sortMode)
     }
 
+    private var pinnedBoundaryIndex: Int? {
+        guard let lastPinned = displayedProjects.lastIndex(where: \.isPinned),
+              lastPinned < displayedProjects.count - 1
+        else { return nil }
+        return lastPinned
+    }
+
     @ViewBuilder private var listHeader: some View {
         if isWide {
             HStack(spacing: UIMetrics.spacing2) {
@@ -270,6 +277,10 @@ struct Sidebar: View {
                             }
                         }
                         .gesture(projectDragGesture(for: project))
+
+                    if offset == pinnedBoundaryIndex {
+                        PinnedProjectsDivider()
+                    }
                 }
 
                 addButton
@@ -314,7 +325,8 @@ struct Sidebar: View {
                 onSetLogo: { projectStore.setLogo(id: project.id, to: $0) },
                 onSetIcon: { projectStore.setIcon(id: project.id, to: $0) },
                 onSetIconColor: { projectStore.setIconColor(id: project.id, to: $0) },
-                onSetWorktreesEnabled: { setWorktreesEnabled(project, to: $0) }
+                onSetWorktreesEnabled: { setWorktreesEnabled(project, to: $0) },
+                onSetPinned: { projectStore.setPinned(id: project.id, to: $0) }
             )
         } else {
             ProjectRow(
@@ -327,7 +339,8 @@ struct Sidebar: View {
                 onSetLogo: { projectStore.setLogo(id: project.id, to: $0) },
                 onSetIcon: { projectStore.setIcon(id: project.id, to: $0) },
                 onSetIconColor: { projectStore.setIconColor(id: project.id, to: $0) },
-                onSetWorktreesEnabled: { setWorktreesEnabled(project, to: $0) }
+                onSetWorktreesEnabled: { setWorktreesEnabled(project, to: $0) },
+                onSetPinned: { projectStore.setPinned(id: project.id, to: $0) }
             )
         }
     }
@@ -361,7 +374,7 @@ struct Sidebar: View {
         DragGesture(minimumDistance: 6, coordinateSpace: .named("sidebar"))
             .onChanged { value in
                 if dragState.draggedID == nil {
-                    switchToManualSortIfNeeded()
+                    beginManualReorder()
                     dragState.draggedID = project.id
                     dragState.lastReorderTargetID = nil
                 }
@@ -428,8 +441,7 @@ struct Sidebar: View {
         alert.runModal()
     }
 
-    private func switchToManualSortIfNeeded() {
-        guard sortMode != .manual else { return }
+    private func beginManualReorder() {
         guard !projectGroupStore.isRemoteWorkspaceActive else { return }
         projectStore.persistOrder(displayedProjects.map(\.id))
         sortModeRaw = ProjectSortMode.manual.rawValue
@@ -468,6 +480,16 @@ private struct ProjectDragState {
     var draggedID: UUID?
     var frames: [UUID: CGRect] = [:]
     var lastReorderTargetID: UUID?
+}
+
+private struct PinnedProjectsDivider: View {
+    var body: some View {
+        Rectangle()
+            .fill(MuxyTheme.border)
+            .frame(height: 1)
+            .padding(.horizontal, UIMetrics.spacing2)
+            .accessibilityHidden(true)
+    }
 }
 
 private struct ExternalProjectDropHighlight: View {

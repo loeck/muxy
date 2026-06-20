@@ -5,10 +5,11 @@ import Testing
 
 @Suite("ProjectSortMode")
 struct ProjectSortModeTests {
-    private func project(_ name: String, sortOrder: Int = 0, createdAt: Date = Date(), lastActiveAt: Date? = nil) -> Project {
+    private func project(_ name: String, sortOrder: Int = 0, createdAt: Date = Date(), lastActiveAt: Date? = nil, isPinned: Bool = false) -> Project {
         var project = Project(name: name, path: "/tmp/\(name)", sortOrder: sortOrder)
         project.createdAt = createdAt
         project.lastActiveAt = lastActiveAt
+        project.isPinned = isPinned
         return project
     }
 
@@ -54,5 +55,26 @@ struct ProjectSortModeTests {
         let newer = Date(timeIntervalSince1970: 2000)
         let input = [project("Newer", createdAt: newer), project("Older", createdAt: older)]
         #expect(ProjectSortMode.dateCreated.sorted(input).map(\.name) == ["Older", "Newer"])
+    }
+
+    @Test("pinned projects are placed ahead of unpinned in every mode")
+    func pinnedFirst() {
+        let input = [
+            project("Apple", sortOrder: 0),
+            project("Zebra", sortOrder: 1, isPinned: true),
+            project("Mango", sortOrder: 2),
+        ]
+        #expect(ProjectSortMode.manual.sorted(input).map(\.name) == ["Zebra", "Apple", "Mango"])
+        #expect(ProjectSortMode.nameAscending.sorted(input).map(\.name) == ["Zebra", "Apple", "Mango"])
+    }
+
+    @Test("pinned projects keep the chosen mode order among themselves")
+    func pinnedPreserveModeOrder() {
+        let input = [
+            project("Bravo", isPinned: true),
+            project("Alpha", isPinned: true),
+            project("Charlie"),
+        ]
+        #expect(ProjectSortMode.nameAscending.sorted(input).map(\.name) == ["Alpha", "Bravo", "Charlie"])
     }
 }

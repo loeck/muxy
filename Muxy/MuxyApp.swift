@@ -417,7 +417,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        confirmQuitIfNeeded()
+        guard !AppRelaunch.isRelaunching else { return .terminateNow }
+        return confirmQuitIfNeeded()
     }
 
     @MainActor
@@ -465,14 +466,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             NotificationCenter.default.removeObserver(modalThemeObserver)
             self.modalThemeObserver = nil
         }
-        onTerminate?()
+        persistUserStateForTermination()
         NotificationStore.shared.saveToDisk()
         NotificationSocketServer.shared.stop()
         MainActor.assumeIsolated {
             MobileServerService.shared.stopForTermination()
-            RichInputDraftStore.shared.flush()
             ExtensionStore.shared.stopAll()
         }
+    }
+
+    func persistUserStateForTermination() {
+        guard !AppRelaunch.isRelaunching else { return }
+        onTerminate?()
+        RichInputDraftStore.shared.flush()
     }
 
     @MainActor
