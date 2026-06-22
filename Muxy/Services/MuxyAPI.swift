@@ -756,52 +756,60 @@ enum MuxyAPI {
             return .success(())
         }
 
-        static func rename(identifier: String, name: String, projectStore: ProjectStore) -> Result<Void, APIError> {
-            resolveMutableProject(identifier, in: projectStore).map {
-                projectStore.rename(id: $0.id, to: name)
+        static func rename(identifier: String, name: String, context: Context) -> Result<Void, APIError> {
+            resolveMutableProject(identifier, context: context).map {
+                context.projectStore.rename(id: $0.id, to: name)
             }
         }
 
-        static func setColor(identifier: String, color: String?, projectStore: ProjectStore) -> Result<Void, APIError> {
-            resolveMutableProject(identifier, in: projectStore).map {
-                projectStore.setIconColor(id: $0.id, to: color)
+        static func setColor(identifier: String, color: String?, context: Context) -> Result<Void, APIError> {
+            resolveMutableProject(identifier, context: context).map {
+                context.projectStore.setIconColor(id: $0.id, to: color)
             }
         }
 
-        static func setIcon(identifier: String, icon: String?, projectStore: ProjectStore) -> Result<Void, APIError> {
-            resolveMutableProject(identifier, in: projectStore).map {
-                projectStore.setIcon(id: $0.id, to: icon)
+        static func setIcon(identifier: String, icon: String?, context: Context) -> Result<Void, APIError> {
+            resolveMutableProject(identifier, context: context).map {
+                context.projectStore.setIcon(id: $0.id, to: icon)
             }
         }
 
-        static func setLogo(identifier: String, logo: String?, projectStore: ProjectStore) -> Result<Void, APIError> {
-            resolveMutableProject(identifier, in: projectStore).map {
-                projectStore.setLogo(id: $0.id, to: logo)
+        static func setLogo(identifier: String, logo: String?, context: Context) -> Result<Void, APIError> {
+            resolveMutableProject(identifier, context: context).map {
+                context.projectStore.setLogo(id: $0.id, to: logo)
             }
         }
 
-        static func reorder(identifiers: [String], projectStore: ProjectStore) -> Result<Void, APIError> {
+        static func reorder(identifiers: [String], context: Context) -> Result<Void, APIError> {
             var orderedIDs: [UUID] = []
             for identifier in identifiers {
-                guard let project = findProject(identifier, in: projectStore.projects), project.id != Project.homeID else {
-                    return .failure(.projectNotFound(identifier))
+                switch resolveMutableProject(identifier, context: context) {
+                case let .success(project): orderedIDs.append(project.id)
+                case let .failure(error): return .failure(error)
                 }
-                orderedIDs.append(project.id)
             }
-            let reorderable = Set(projectStore.projects.lazy.filter { $0.id != Project.homeID }.map(\.id))
+            let reorderable = Set(context.projectStore.projects.lazy.filter { $0.id != Project.homeID }.map(\.id))
             guard Set(orderedIDs) == reorderable else {
                 return .failure(.invalidArguments("identifiers must list every project exactly once"))
             }
-            projectStore.persistOrder(orderedIDs)
+            context.projectStore.persistOrder(orderedIDs)
             return .success(())
         }
 
-        private static func resolveMutableProject(_ identifier: String, in projectStore: ProjectStore) -> Result<Project, APIError> {
-            guard let project = findProject(identifier, in: projectStore.projects) else {
+        private static func resolveMutableProject(_ identifier: String, context: Context) -> Result<Project, APIError> {
+            guard let project = context.projectGroupStore.resolveProject(
+                identifier: identifier,
+                localProjects: context.projectStore.projects,
+                activeProjectID: context.appState.activeProjectID
+            )
+            else {
                 return .failure(.projectNotFound(identifier))
             }
             guard project.id != Project.homeID else {
                 return .failure(.invalidArguments("the home project cannot be modified"))
+            }
+            guard !project.isRemote else {
+                return .failure(.invalidArguments("remote projects cannot be modified"))
             }
             return .success(project)
         }

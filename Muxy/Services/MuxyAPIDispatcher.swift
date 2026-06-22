@@ -240,74 +240,49 @@ enum MuxyAPIDispatcher {
             ))
             return NSNull()
         case "projects.delete":
-            guard let projectStore = context.projectStore,
-                  let worktreeStore = context.worktreeStore,
-                  let projectGroupStore = context.projectGroupStore
-            else { throw APIError.projectStoreUnavailable }
             try await unwrap(MuxyAPI.Projects.delete(
                 identifier: stringArg(args, "identifier"),
-                context: MuxyAPI.Projects.Context(
-                    extensionID: context.extensionID,
-                    appState: context.appState,
-                    projectStore: projectStore,
-                    worktreeStore: worktreeStore,
-                    projectGroupStore: projectGroupStore
-                )
+                context: projectsContext(context)
             ))
             return NSNull()
         case "projects.add":
-            guard let projectStore = context.projectStore,
-                  let worktreeStore = context.worktreeStore,
-                  let projectGroupStore = context.projectGroupStore
-            else { throw APIError.projectStoreUnavailable }
             try unwrap(MuxyAPI.Projects.add(
                 path: stringArg(args, "path"),
-                context: MuxyAPI.Projects.Context(
-                    extensionID: context.extensionID,
-                    appState: context.appState,
-                    projectStore: projectStore,
-                    worktreeStore: worktreeStore,
-                    projectGroupStore: projectGroupStore
-                )
+                context: projectsContext(context)
             ))
             return NSNull()
         case "projects.rename":
-            guard let projectStore = context.projectStore else { throw APIError.projectStoreUnavailable }
             try unwrap(MuxyAPI.Projects.rename(
                 identifier: stringArg(args, "identifier"),
                 name: stringArg(args, "name"),
-                projectStore: projectStore
+                context: projectsContext(context)
             ))
             return NSNull()
         case "projects.setColor":
-            guard let projectStore = context.projectStore else { throw APIError.projectStoreUnavailable }
             try unwrap(MuxyAPI.Projects.setColor(
                 identifier: stringArg(args, "identifier"),
                 color: optionalStringArg(args, "color"),
-                projectStore: projectStore
+                context: projectsContext(context)
             ))
             return NSNull()
         case "projects.setIcon":
-            guard let projectStore = context.projectStore else { throw APIError.projectStoreUnavailable }
             try unwrap(MuxyAPI.Projects.setIcon(
                 identifier: stringArg(args, "identifier"),
                 icon: optionalStringArg(args, "icon"),
-                projectStore: projectStore
+                context: projectsContext(context)
             ))
             return NSNull()
         case "projects.setLogo":
-            guard let projectStore = context.projectStore else { throw APIError.projectStoreUnavailable }
             try unwrap(MuxyAPI.Projects.setLogo(
                 identifier: stringArg(args, "identifier"),
                 logo: optionalStringArg(args, "logo"),
-                projectStore: projectStore
+                context: projectsContext(context)
             ))
             return NSNull()
         case "projects.reorder":
-            guard let projectStore = context.projectStore else { throw APIError.projectStoreUnavailable }
             try unwrap(MuxyAPI.Projects.reorder(
                 identifiers: stringArrayArg(args, "identifiers"),
-                projectStore: projectStore
+                context: projectsContext(context)
             ))
             return NSNull()
         case "worktrees.list":
@@ -731,6 +706,20 @@ enum MuxyAPIDispatcher {
 
     private static func optionalStringArg(_ args: [String: Any], _ key: String) -> String? {
         args[key] as? String
+    }
+
+    private static func projectsContext(_ context: Context) throws -> MuxyAPI.Projects.Context {
+        guard let projectStore = context.projectStore,
+              let worktreeStore = context.worktreeStore,
+              let projectGroupStore = context.projectGroupStore
+        else { throw APIError.projectStoreUnavailable }
+        return MuxyAPI.Projects.Context(
+            extensionID: context.extensionID,
+            appState: context.appState,
+            projectStore: projectStore,
+            worktreeStore: worktreeStore,
+            projectGroupStore: projectGroupStore
+        )
     }
 
     private static func doubleArg(_ args: [String: Any], _ key: String) throws -> Double {
