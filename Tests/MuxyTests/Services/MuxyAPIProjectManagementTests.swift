@@ -81,6 +81,46 @@ struct MuxyAPIProjectManagementRoutingTests {
         #expect(store.storedProjects.map(\.sortOrder) == [0, 1, 2])
     }
 
+    @Test("reorder rejects an empty identifier list")
+    func reorderRejectsEmpty() {
+        let project = Project(name: "A", path: "/tmp/a", sortOrder: 0)
+        let store = ProjectStore(persistence: ProjectManagementPersistenceStub(initial: [project]))
+
+        let result = MuxyAPI.Projects.reorder(identifiers: [], projectStore: store)
+
+        guard case .failure = result else {
+            Issue.record("expected failure for an empty identifier list")
+            return
+        }
+    }
+
+    @Test("reorder rejects a partial list and leaves order untouched")
+    func reorderRejectsPartial() {
+        let first = Project(name: "A", path: "/tmp/a", sortOrder: 0)
+        let second = Project(name: "B", path: "/tmp/b", sortOrder: 1)
+        let store = ProjectStore(persistence: ProjectManagementPersistenceStub(initial: [first, second]))
+
+        let result = MuxyAPI.Projects.reorder(identifiers: [second.id.uuidString], projectStore: store)
+
+        guard case .failure(.invalidArguments) = result else {
+            Issue.record("expected invalidArguments for a partial list")
+            return
+        }
+        #expect(store.storedProjects.map(\.id) == [first.id, second.id])
+    }
+
+    @Test("markActive does not broadcast a change")
+    func markActiveDoesNotNotify() {
+        let project = Project(name: "Repo", path: "/tmp/muxy-active-\(UUID().uuidString)")
+        let store = ProjectStore(persistence: ProjectManagementPersistenceStub(initial: [project]))
+        var changes = 0
+        store.onProjectsChanged = { changes += 1 }
+
+        store.markActive(id: project.id)
+
+        #expect(changes == 0)
+    }
+
     @Test("home project cannot be modified")
     func homeProjectRejected() {
         let store = ProjectStore(persistence: ProjectManagementPersistenceStub(initial: []))
@@ -129,6 +169,51 @@ struct MuxyAPIProjectManagementRoutingTests {
         }
     }
 
+    @Test("list surfaces sortOrder, iconColor and worktreesEnabled")
+    func listSurfacesMetadata() {
+        let first = Project(name: "A", path: "/tmp/a", sortOrder: 0)
+        let second = Project(name: "B", path: "/tmp/b", sortOrder: 1)
+        let env = ProjectManagementEnvironment(projects: [first, second])
+
+        _ = MuxyAPI.Projects.setColor(identifier: first.id.uuidString, color: "#E5484D", projectStore: env.projectStore)
+        _ = MuxyAPI.Projects.reorder(
+            identifiers: [second.id.uuidString, first.id.uuidString],
+            projectStore: env.projectStore
+        )
+
+        let list = MuxyAPI.Projects.list(appState: env.appState, projectStore: env.projectStore)
+        let firstInfo = list.first { $0.id == first.id }
+        #expect(firstInfo?.iconColor == "#E5484D")
+        #expect(firstInfo?.sortOrder == 1)
+        #expect(firstInfo?.worktreesEnabled == false)
+    }
+
+    @Test("add enables worktrees on a newly added project")
+    func addEnablesWorktrees() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("muxy-add-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let env = ProjectManagementEnvironment()
+
+        #expect(isSuccess(MuxyAPI.Projects.add(path: dir.path, context: env.context)))
+
+        let added = env.projectStore.storedProjects.first { $0.path == dir.standardizedFileURL.path }
+        #expect(added?.worktreesEnabled == true)
+    }
+
+    @Test("add does not override worktreesEnabled on an existing project")
+    func addPreservesExistingWorktreesSetting() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("muxy-existing-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let existing = Project(name: "Existing", path: dir.standardizedFileURL.path)
+        let env = ProjectManagementEnvironment(projects: [existing])
+
+        #expect(isSuccess(MuxyAPI.Projects.add(path: dir.path, context: env.context)))
+
+        #expect(env.projectStore.storedProjects.first { $0.id == existing.id }?.worktreesEnabled == false)
+    }
+
     private func isSuccess(_ result: Result<Void, APIError>) -> Bool {
         if case .success = result { return true }
         return false
@@ -149,9 +234,9 @@ private struct ProjectManagementEnvironment {
     let worktreeStore: WorktreeStore
     let projectGroupStore: ProjectGroupStore
 
-    init() {
-        projectStore = ProjectStore(persistence: ProjectManagementPersistenceStub(initial: []))
-        worktreeStore = WorktreeStore(persistence: ProjectManagementWorktreePersistenceStub(), projects: [])
+    init(projects: [Project] = []) {
+        projectStore = ProjectStore(persistence: ProjectManagementPersistenceStub(initial: projects))
+        worktreeStore = WorktreeStore(persistence: ProjectManagementWorktreePersistenceStub(), projects: projects)
         appState = AppState(
             selectionStore: ProjectManagementSelectionStoreStub(),
             terminalViews: ProjectManagementTerminalViewRemovingStub(),

@@ -80,7 +80,7 @@ final class ProjectStore {
     func markActive(id: UUID) {
         guard let index = storedProjects.firstIndex(where: { $0.id == id }) else { return }
         storedProjects[index].lastActiveAt = Date()
-        save()
+        save(notify: false)
     }
 
     func persistOrder(_ orderedIDs: [UUID]) {
@@ -100,13 +100,13 @@ final class ProjectStore {
         save()
     }
 
-    func save() {
+    func save(notify: Bool = true) {
         do {
             try persistence.saveProjects(storedProjects)
         } catch {
             logger.error("Failed to save projects: \(error)")
         }
-        onProjectsChanged?()
+        if notify { onProjectsChanged?() }
     }
 
     private func load() {

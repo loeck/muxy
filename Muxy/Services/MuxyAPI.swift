@@ -57,6 +57,11 @@ struct ProjectInfo: Equatable {
     let name: String
     let path: String
     let isActive: Bool
+    let sortOrder: Int
+    let iconColor: String?
+    let icon: String?
+    let logo: String?
+    let worktreesEnabled: Bool
 }
 
 struct WorktreeInfo: Equatable {
@@ -661,7 +666,12 @@ enum MuxyAPI {
                     id: project.id,
                     name: project.name,
                     path: project.path,
-                    isActive: project.id == appState.activeProjectID
+                    isActive: project.id == appState.activeProjectID,
+                    sortOrder: project.sortOrder,
+                    iconColor: project.iconColor,
+                    icon: project.icon,
+                    logo: project.logo,
+                    worktreesEnabled: project.worktreesEnabled
                 )
             }
         }
@@ -725,16 +735,23 @@ enum MuxyAPI {
         }
 
         static func add(path: String, context: Context) -> Result<Void, APIError> {
+            let before = Set(context.projectStore.projects.map(\.id))
             let confirmed = ProjectOpenService.confirmProjectPath(
                 path,
                 appState: context.appState,
                 projectStore: context.projectStore,
                 worktreeStore: context.worktreeStore,
                 projectGroupStore: context.projectGroupStore,
-                createIfMissing: true
+                createIfMissing: false
             )
             guard confirmed else {
                 return .failure(.invalidArguments("could not open project at path '\(path)'"))
+            }
+            if let project = findProject(path, in: context.projectStore.projects),
+               project.id != Project.homeID,
+               !before.contains(project.id)
+            {
+                context.projectStore.setWorktreesEnabled(id: project.id, to: true)
             }
             return .success(())
         }
@@ -764,7 +781,17 @@ enum MuxyAPI {
         }
 
         static func reorder(identifiers: [String], projectStore: ProjectStore) -> Result<Void, APIError> {
-            let orderedIDs = identifiers.compactMap { findProject($0, in: projectStore.projects)?.id }
+            var orderedIDs: [UUID] = []
+            for identifier in identifiers {
+                guard let project = findProject(identifier, in: projectStore.projects), project.id != Project.homeID else {
+                    return .failure(.projectNotFound(identifier))
+                }
+                orderedIDs.append(project.id)
+            }
+            let reorderable = Set(projectStore.projects.lazy.filter { $0.id != Project.homeID }.map(\.id))
+            guard Set(orderedIDs) == reorderable else {
+                return .failure(.invalidArguments("identifiers must list every project exactly once"))
+            }
             projectStore.persistOrder(orderedIDs)
             return .success(())
         }

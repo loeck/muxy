@@ -809,6 +809,11 @@ enum MuxyAPIDispatcher {
             "name": project.name,
             "path": project.path,
             "isActive": project.isActive,
+            "sortOrder": project.sortOrder,
+            "iconColor": project.iconColor ?? NSNull(),
+            "icon": project.icon ?? NSNull(),
+            "logo": project.logo ?? NSNull(),
+            "worktreesEnabled": project.worktreesEnabled,
         ]
     }
 
