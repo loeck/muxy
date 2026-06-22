@@ -201,6 +201,12 @@ public enum ExtensionBridgeJS {
                 list:     ()           => dispatch('projects.list', {}),
                 switchTo: (identifier) => dispatch('projects.switch', { identifier: String(identifier) }),
                 delete:   (identifier) => dispatch('projects.delete', { identifier: String(identifier) }),
+                add:      (path)               => dispatch('projects.add', { path: String(path) }),
+                rename:   (identifier, name)   => dispatch('projects.rename', { identifier: String(identifier), name: String(name) }),
+                setColor: (identifier, color)  => dispatch('projects.setColor', { identifier: String(identifier), color: color == null ? null : String(color) }),
+                setIcon:  (identifier, icon)   => dispatch('projects.setIcon', { identifier: String(identifier), icon: icon == null ? null : String(icon) }),
+                setLogo:  (identifier, logo)   => dispatch('projects.setLogo', { identifier: String(identifier), logo: logo == null ? null : String(logo) }),
+                reorder:  (identifiers)        => dispatch('projects.reorder', { identifiers: (identifiers || []).map(String) }),
             };
             muxy.worktrees = {
                 list:     (project)             => dispatch('worktrees.list', { project: project == null ? null : String(project) }),

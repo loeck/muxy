@@ -9,6 +9,7 @@ final class ProjectStore {
     private(set) var storedProjects: [Project] = []
     private let persistence: any ProjectPersisting
     var onProjectRemoved: ((UUID) -> Void)?
+    var onProjectsChanged: (() -> Void)?
 
     init(persistence: any ProjectPersisting) {
         self.persistence = persistence
@@ -105,6 +106,7 @@ final class ProjectStore {
         } catch {
             logger.error("Failed to save projects: \(error)")
         }
+        onProjectsChanged?()
     }
 
     private func load() {

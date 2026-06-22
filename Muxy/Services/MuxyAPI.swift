@@ -204,6 +204,12 @@ enum MuxyAPI {
             "statusbar.set",
             "tabs.open",
             "projects.delete",
+            "projects.add",
+            "projects.rename",
+            "projects.setColor",
+            "projects.setIcon",
+            "projects.setLogo",
+            "projects.reorder",
             "lifecycle.ackBeforeClose",
             "lifecycle.resolveBeforeClose",
             "lifecycle.closeSelf",
@@ -301,6 +307,12 @@ enum MuxyAPI {
             "projects.list": .projectsRead,
             "projects.switch": .projectsWrite,
             "projects.delete": .projectsDelete,
+            "projects.add": .projectsWrite,
+            "projects.rename": .projectsWrite,
+            "projects.setColor": .projectsWrite,
+            "projects.setIcon": .projectsWrite,
+            "projects.setLogo": .projectsWrite,
+            "projects.reorder": .projectsWrite,
             "worktrees.list": .worktreesRead,
             "worktrees.create": .worktreesWrite,
             "worktrees.switch": .worktreesWrite,
@@ -365,6 +377,7 @@ enum MuxyAPI {
         private static let eventPermissions: [String: ExtensionPermission] = [
             ExtensionEventName.agentStatus: .agentsRead,
             ExtensionEventName.fileChanged: .filesRead,
+            ExtensionEventName.projectsChanged: .projectsRead,
         ]
     }
 
@@ -709,6 +722,61 @@ enum MuxyAPI {
             } catch {
                 return .failure(.underlying(error.localizedDescription))
             }
+        }
+
+        static func add(path: String, context: Context) -> Result<Void, APIError> {
+            let confirmed = ProjectOpenService.confirmProjectPath(
+                path,
+                appState: context.appState,
+                projectStore: context.projectStore,
+                worktreeStore: context.worktreeStore,
+                projectGroupStore: context.projectGroupStore,
+                createIfMissing: true
+            )
+            guard confirmed else {
+                return .failure(.invalidArguments("could not open project at path '\(path)'"))
+            }
+            return .success(())
+        }
+
+        static func rename(identifier: String, name: String, projectStore: ProjectStore) -> Result<Void, APIError> {
+            resolveMutableProject(identifier, in: projectStore).map {
+                projectStore.rename(id: $0.id, to: name)
+            }
+        }
+
+        static func setColor(identifier: String, color: String?, projectStore: ProjectStore) -> Result<Void, APIError> {
+            resolveMutableProject(identifier, in: projectStore).map {
+                projectStore.setIconColor(id: $0.id, to: color)
+            }
+        }
+
+        static func setIcon(identifier: String, icon: String?, projectStore: ProjectStore) -> Result<Void, APIError> {
+            resolveMutableProject(identifier, in: projectStore).map {
+                projectStore.setIcon(id: $0.id, to: icon)
+            }
+        }
+
+        static func setLogo(identifier: String, logo: String?, projectStore: ProjectStore) -> Result<Void, APIError> {
+            resolveMutableProject(identifier, in: projectStore).map {
+                projectStore.setLogo(id: $0.id, to: logo)
+            }
+        }
+
+        static func reorder(identifiers: [String], projectStore: ProjectStore) -> Result<Void, APIError> {
+            let orderedIDs = identifiers.compactMap { findProject($0, in: projectStore.projects)?.id }
+            projectStore.persistOrder(orderedIDs)
+            return .success(())
+        }
+
+        private static func resolveMutableProject(_ identifier: String, in projectStore: ProjectStore) -> Result<Project, APIError> {
+            guard let project = findProject(identifier, in: projectStore.projects) else {
+                return .failure(.projectNotFound(identifier))
+            }
+            guard project.id != Project.homeID else {
+                return .failure(.invalidArguments("the home project cannot be modified"))
+            }
+            return .success(project)
         }
     }
 

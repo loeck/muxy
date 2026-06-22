@@ -15,8 +15,8 @@ Permissions apply only to identified callers. The host identifies itself on beha
 | `panes:write` | `split-right`, `split-down`, `send`, `send-keys`, `close-pane`, `rename-pane`. Split requests with a startup command also require `commands:exec`. |
 | `tabs:read` | `list-tabs` |
 | `tabs:write` | `switch-tab`, `new-tab`, `next-tab`, `previous-tab`, `open-tab`. Opening a terminal tab with a startup `command` also prompts for runtime consent. |
-| `projects:read` | `list-projects` |
-| `projects:write` | `switch-project` |
+| `projects:read` | `list-projects`. Also required to subscribe to the `projects.changed` [event](events.md). |
+| `projects:write` | `switch-project`, `projects.add`, `projects.rename`, `projects.setColor`, `projects.setIcon`, `projects.setLogo`, `projects.reorder` |
 | `projects:delete` | `projects.delete` |
 | `worktrees:read` | `list-worktrees` |
 | `worktrees:write` | `create-worktree`, `switch-worktree`, `refresh-worktrees` |

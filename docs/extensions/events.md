@@ -67,12 +67,15 @@ When an extension is reloaded or disabled, its subscriptions are dropped and re-
 | `popover.opened` | `extensionID`, `popoverID` | `events: ["popover.opened"]` |
 | `popover.closed` | `extensionID`, `popoverID` | `events: ["popover.closed"]` |
 | `project.switched` | `projectID` | `events: ["project.switched"]` |
+| `projects.changed` | _(none)_ | `events: ["projects.changed"]` + `projects:read` |
 | `worktree.switched` | `projectID`, `worktreeID` | `events: ["worktree.switched"]` |
 | `notification.posted` | `paneID`, `projectID`, `worktreeID`, `worktreePath`, `tabID`, `source`, `title`, `body` | `events: ["notification.posted"]` |
 | `agent.status` | `worktreeID`, `projectID`, `paneID`, `providerID`, `status` | `events: ["agent.status"]` + `agents:read` |
 | `file.changed` | `path`, `projectPath` | `events: ["file.changed"]` + `files:read` |
 | `command.<id>` | `command`, `extension` | Auto-allowed when `commands[].id == <id>` |
 | `extension.<name>` | JSON payload from emitter | Auto-allowed same-extension local event |
+
+`projects.changed` fires whenever the project list changes — a project is added, renamed, recolored, re-iconed, reordered, or removed — whether the change came from Muxy's own UI or from an extension verb. It carries no payload; call [`muxy.projects.list()`](permissions.md) to refetch the current list.
 
 `agent.status` reports an AI coding agent's lifecycle per worktree, driven by the provider's hooks: `working` when a prompt is submitted or the agent runs a tool, `waiting` when the agent needs attention, `idle` when it stops. `providerID` identifies the agent (e.g. `claude`). When a worktree holds several agent panes, the reported status is the most active one (`working` > `waiting` > `idle`) and `paneID` points to the pane that owns it. It fires only when the worktree status changes, and turns `idle` once the last agent pane in the worktree closes. Pair it with [`muxy.agents.list()`](permissions.md) to hydrate current statuses on load.
 
