@@ -791,8 +791,12 @@ enum MuxyAPI {
         }
 
         static func rename(identifier: String, name: String, context: Context) -> Result<Void, APIError> {
-            resolveMutableProject(identifier, context: context).map {
-                context.projectStore.rename(id: $0.id, to: name)
+            let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else {
+                return .failure(.invalidArguments("name cannot be empty"))
+            }
+            return resolveMutableProject(identifier, context: context).map {
+                context.projectStore.rename(id: $0.id, to: trimmed)
             }
         }
 
@@ -823,7 +827,7 @@ enum MuxyAPI {
                 }
             }
             let reorderable = Set(context.projectStore.projects.lazy.filter { $0.id != Project.homeID }.map(\.id))
-            guard Set(orderedIDs) == reorderable else {
+            guard orderedIDs.count == reorderable.count, Set(orderedIDs) == reorderable else {
                 return .failure(.invalidArguments("identifiers must list every project exactly once"))
             }
             context.projectStore.persistOrder(orderedIDs)

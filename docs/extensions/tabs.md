@@ -120,7 +120,7 @@ window.muxy = {
     rename(paneID, title): Promise<void>,
   },
 
-  projects:  { list(), switchTo(identifier), add(path), rename(identifier, name), setColor(identifier, color), setIcon(identifier, icon), setLogo(identifier, logo), reorder(identifiers), delete(identifier) },  // list() → { id, name, path, isActive, sortOrder, worktreesEnabled, iconColor?, icon?, logo? }; add/rename/set*/reorder need projects:write; delete() needs projects:delete + consent
+  projects:  { list(), switchTo(identifier), add(path), rename(identifier, name), setColor(identifier, color), setIcon(identifier, icon), setLogo(identifier, logo), reorder(identifiers), delete(identifier) },  // list() → { id, name, path, isActive, sortOrder, worktreesEnabled, iconColor?, icon?, logo? }; add() also activates the project; add/rename/set*/reorder need projects:write; delete() needs projects:delete + consent
   worktrees: { list(project?), switchTo(identifier, project?), refresh(project?) },
   panels:    { open(id, data?), toggle(id, data?), close(id) },  // panels:write — see panels.md
   popover:   { close(), resize(width, height) },                // panels:write — see popovers.md

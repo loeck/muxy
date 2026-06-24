@@ -109,6 +109,47 @@ struct MuxyAPIProjectManagementRoutingTests {
         #expect(env.projectStore.storedProjects.map(\.id) == [first.id, second.id])
     }
 
+    @Test("reorder rejects a duplicated identifier and leaves order untouched")
+    func reorderRejectsDuplicate() {
+        let first = Project(name: "A", path: "/tmp/a", sortOrder: 0)
+        let second = Project(name: "B", path: "/tmp/b", sortOrder: 1)
+        let env = ProjectManagementEnvironment(projects: [first, second])
+
+        let result = MuxyAPI.Projects.reorder(
+            identifiers: [first.id.uuidString, first.id.uuidString, second.id.uuidString],
+            context: env.context
+        )
+
+        guard case .failure(.invalidArguments) = result else {
+            Issue.record("expected invalidArguments for a duplicated identifier")
+            return
+        }
+        #expect(env.projectStore.storedProjects.map(\.id) == [first.id, second.id])
+    }
+
+    @Test("rename rejects an empty or whitespace-only name")
+    func renameRejectsEmptyName() {
+        let project = Project(name: "Repo", path: "/tmp/muxy-empty-\(UUID().uuidString)")
+        let env = ProjectManagementEnvironment(projects: [project])
+
+        let result = MuxyAPI.Projects.rename(identifier: project.id.uuidString, name: "   ", context: env.context)
+
+        guard case .failure(.invalidArguments) = result else {
+            Issue.record("expected invalidArguments for an empty name")
+            return
+        }
+        #expect(env.projectStore.storedProjects.first { $0.id == project.id }?.name == "Repo")
+    }
+
+    @Test("rename trims surrounding whitespace from the new name")
+    func renameTrimsName() {
+        let project = Project(name: "Repo", path: "/tmp/muxy-trim-\(UUID().uuidString)")
+        let env = ProjectManagementEnvironment(projects: [project])
+
+        #expect(isSuccess(MuxyAPI.Projects.rename(identifier: project.id.uuidString, name: "  Renamed  ", context: env.context)))
+        #expect(env.projectStore.storedProjects.first { $0.id == project.id }?.name == "Renamed")
+    }
+
     @Test("markActive does not broadcast a change")
     func markActiveDoesNotNotify() {
         let project = Project(name: "Repo", path: "/tmp/muxy-active-\(UUID().uuidString)")
