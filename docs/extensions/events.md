@@ -85,6 +85,7 @@ Which states a provider reports depends on the hooks its CLI exposes:
 | --- | --- | --- | --- |
 | Claude Code (`claude`) | ✓ | ✓ | ✓ |
 | Droid (`droid`) | ✓ | ✓ | ✓ |
+| Grok (`grok`) | ✓ | ✓ | ✓ |
 | OpenCode (`opencode`) | ✓ | ✓ | ✓ |
 | Pi (`pi`) | ✓ | — | ✓ |
 | Cursor (`cursor`) | — | ✓ | ✓ |

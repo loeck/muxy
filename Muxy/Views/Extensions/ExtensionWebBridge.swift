@@ -168,6 +168,15 @@ enum ExtensionWebBridge {
                         return send('tabs.setIcon', { tabInstanceID: muxy.tabInstanceID, icon: icon ?? null });
                     },
                 },
+                browser: {
+                    open(url, opts) {
+                        return send('browser.open', { url: url == null ? null : String(url), split: Boolean((opts || {}).split) });
+                    },
+                    navigate(tabId, url) { return send('browser.navigate', { tabId: String(tabId), url: String(url) }); },
+                    list() { return send('browser.list', {}); },
+                    read(tabId) { return send('browser.read', { tabId: String(tabId) }); },
+                    close(tabId) { return send('browser.close', { tabId: String(tabId) }); },
+                },
                 panes: {
                     list() { return send('panes.list', {}); },
                     send(paneID, text) { return send('panes.send', { paneID, text: String(text) }); },
@@ -184,9 +193,18 @@ enum ExtensionWebBridge {
                     delete(identifier) { return send('projects.delete', { identifier: String(identifier) }); },
                     add(path) { return send('projects.add', { path: String(path) }); },
                     rename(identifier, name) { return send('projects.rename', { identifier: String(identifier), name: String(name) }); },
-                    setColor(identifier, color) { return send('projects.setColor', { identifier: String(identifier), color: color == null ? null : String(color) }); },
-                    setIcon(identifier, icon) { return send('projects.setIcon', { identifier: String(identifier), icon: icon == null ? null : String(icon) }); },
-                    setLogo(identifier, logo) { return send('projects.setLogo', { identifier: String(identifier), logo: logo == null ? null : String(logo) }); },
+                    setColor(identifier, color) {
+                        const payload = { identifier: String(identifier), color: color == null ? null : String(color) };
+                        return send('projects.setColor', payload);
+                    },
+                    setIcon(identifier, icon) {
+                        const payload = { identifier: String(identifier), icon: icon == null ? null : String(icon) };
+                        return send('projects.setIcon', payload);
+                    },
+                    setLogo(identifier, logo) {
+                        const payload = { identifier: String(identifier), logo: logo == null ? null : String(logo) };
+                        return send('projects.setLogo', payload);
+                    },
                     reorder(identifiers) { return send('projects.reorder', { identifiers: (identifiers || []).map(String) }); },
                 },
                 panels: {
@@ -502,6 +520,7 @@ enum ExtensionWebBridge {
 
             Object.freeze(muxy.notifications);
             Object.freeze(muxy.tabs);
+            Object.freeze(muxy.browser);
             Object.freeze(muxy.panes);
             Object.freeze(muxy.projects);
             Object.freeze(muxy.panels);
