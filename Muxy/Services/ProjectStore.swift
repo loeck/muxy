@@ -92,6 +92,19 @@ final class ProjectStore {
         save()
     }
 
+    func persistOrder(_ orderedIDs: [UUID], scopedTo scopedIDs: Set<UUID>) {
+        let projectsByID = Dictionary(uniqueKeysWithValues: storedProjects.map { ($0.id, $0) })
+        var scopedProjects = orderedIDs.compactMap { projectsByID[$0] }
+        storedProjects = storedProjects.map { project in
+            guard scopedIDs.contains(project.id), !scopedProjects.isEmpty else { return project }
+            return scopedProjects.removeFirst()
+        }
+        for index in storedProjects.indices {
+            storedProjects[index].sortOrder = index
+        }
+        save()
+    }
+
     func reorder(fromOffsets source: IndexSet, toOffset destination: Int) {
         storedProjects.move(fromOffsets: source, toOffset: destination)
         for index in storedProjects.indices {

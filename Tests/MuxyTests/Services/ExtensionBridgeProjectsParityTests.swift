@@ -5,11 +5,6 @@ import Testing
 
 @testable import Muxy
 
-/// Guards against the two extension bridges drifting apart. The in-process sidebar
-/// webview is wired by `ExtensionWebBridge`, while `ExtensionBridgeJS` builds the
-/// surface used elsewhere — both must expose the same `muxy.projects` verbs. A verb
-/// added to one (and the dispatcher) but forgotten in the other ships a method that
-/// is `undefined` at runtime (this happened with `projects.reorder`).
 @Suite("Extension bridge projects parity")
 struct ExtensionBridgeProjectsParityTests {
     private func projectVerbKeys(evaluating script: String, shim: (JSContext) -> Void) -> String? {

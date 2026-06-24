@@ -813,8 +813,15 @@ enum MuxyAPI {
         }
 
         static func setLogo(identifier: String, logo: String?, context: Context) -> Result<Void, APIError> {
-            resolveMutableProject(identifier, context: context).map {
-                context.projectStore.setLogo(id: $0.id, to: logo)
+            switch resolveMutableProject(identifier, context: context) {
+            case let .success(project):
+                if let logo, !ProjectLogoStorage.isStoredLogoFilename(logo, forProjectID: project.id) {
+                    return .failure(.invalidArguments("invalid project logo"))
+                }
+                context.projectStore.setLogo(id: project.id, to: logo)
+                return .success(())
+            case let .failure(error):
+                return .failure(error)
             }
         }
 
@@ -826,11 +833,11 @@ enum MuxyAPI {
                 case let .failure(error): return .failure(error)
                 }
             }
-            let reorderable = Set(context.projectStore.projects.lazy.filter { $0.id != Project.homeID }.map(\.id))
+            let reorderable = Set(context.projectStore.projects.lazy.filter { !$0.isHome && !$0.isRemote }.map(\.id))
             guard orderedIDs.count == reorderable.count, Set(orderedIDs) == reorderable else {
                 return .failure(.invalidArguments("identifiers must list every project exactly once"))
             }
-            context.projectStore.persistOrder(orderedIDs)
+            context.projectStore.persistOrder(orderedIDs, scopedTo: reorderable)
             return .success(())
         }
 

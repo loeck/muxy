@@ -124,11 +124,26 @@ final class NotificationSocketServer: @unchecked Sendable {
     }
 
     private static func canSubscribe(entry: ExtensionSnapshotEntry, to event: String) -> Bool {
-        entry.allowedEvents.contains(event) || entry.commandEvents.contains(event)
+        subscriptionError(entry: entry, event: event) == nil
     }
 
     static func canSubscribeForTesting(entry: ExtensionSnapshotEntry, to event: String) -> Bool {
         canSubscribe(entry: entry, to: event)
+    }
+
+    static func subscriptionErrorForTesting(entry: ExtensionSnapshotEntry, event: String) -> String? {
+        subscriptionError(entry: entry, event: event)
+    }
+
+    private static func subscriptionError(entry: ExtensionSnapshotEntry, event: String) -> String? {
+        guard entry.allowedEvents.contains(event) || entry.commandEvents.contains(event) else {
+            return "event \(event) not declared in manifest"
+        }
+        guard let required = MuxyAPI.Permissions.required(forEvent: event) else { return nil }
+        guard entry.permissions.contains(required) else {
+            return "permission denied (\(required.rawValue))"
+        }
+        return nil
     }
 
     func broadcast(event: ExtensionEvent) {
@@ -511,8 +526,8 @@ final class NotificationSocketServer: @unchecked Sendable {
                 guard let entry = extensionSnapshot.entries[extensionID] else {
                     return "error:extension \(extensionID) is no longer loaded"
                 }
-                guard Self.canSubscribe(entry: entry, to: event) else {
-                    return "error:event \(event) not declared in manifest"
+                if let error = Self.subscriptionError(entry: entry, event: event) {
+                    return "error:\(error)"
                 }
             }
             session.subscriptions.insert(event)

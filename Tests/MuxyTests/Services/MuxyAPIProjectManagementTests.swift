@@ -46,12 +46,35 @@ struct MuxyAPIProjectManagementRoutingTests {
 
         #expect(isSuccess(MuxyAPI.Projects.setColor(identifier: id, color: "#E5484D", context: env.context)))
         #expect(isSuccess(MuxyAPI.Projects.setIcon(identifier: id, icon: "star.fill", context: env.context)))
-        #expect(isSuccess(MuxyAPI.Projects.setLogo(identifier: id, logo: "logo-token", context: env.context)))
+        #expect(isSuccess(MuxyAPI.Projects.setLogo(
+            identifier: id,
+            logo: "\(project.id.uuidString).png",
+            context: env.context
+        )))
 
         let stored = env.projectStore.storedProjects.first { $0.id == project.id }
         #expect(stored?.iconColor == "#E5484D")
         #expect(stored?.icon == "star.fill")
-        #expect(stored?.logo == "logo-token")
+        #expect(stored?.logo == "\(project.id.uuidString).png")
+    }
+
+    @Test("setLogo rejects path traversal")
+    func setLogoRejectsPathTraversal() {
+        var project = Project(name: "Repo", path: "/tmp/muxy-logo-\(UUID().uuidString)")
+        project.logo = "\(project.id.uuidString).png"
+        let env = ProjectManagementEnvironment(projects: [project])
+
+        let result = MuxyAPI.Projects.setLogo(
+            identifier: project.id.uuidString,
+            logo: "../projects.json",
+            context: env.context
+        )
+
+        guard case .failure(.invalidArguments) = result else {
+            Issue.record("expected invalidArguments for an unsafe logo path")
+            return
+        }
+        #expect(env.projectStore.storedProjects.first { $0.id == project.id }?.logo == "\(project.id.uuidString).png")
     }
 
     @Test("setColor with nil clears the color")
@@ -125,6 +148,23 @@ struct MuxyAPIProjectManagementRoutingTests {
             return
         }
         #expect(env.projectStore.storedProjects.map(\.id) == [first.id, second.id])
+    }
+
+    @Test("reorder ignores remote projects")
+    func reorderIgnoresRemoteProjects() {
+        let first = Project(name: "A", path: "/tmp/a", sortOrder: 0)
+        let remote = Project(name: "Remote", path: "/remote/repo", sortOrder: 1, remoteWorkspaceID: UUID())
+        let second = Project(name: "B", path: "/tmp/b", sortOrder: 2)
+        let env = ProjectManagementEnvironment(projects: [first, remote, second])
+
+        let result = MuxyAPI.Projects.reorder(
+            identifiers: [second.id.uuidString, first.id.uuidString],
+            context: env.context
+        )
+
+        #expect(isSuccess(result))
+        #expect(env.projectStore.storedProjects.map(\.id) == [second.id, remote.id, first.id])
+        #expect(env.projectStore.storedProjects.map(\.sortOrder) == [0, 1, 2])
     }
 
     @Test("rename rejects an empty or whitespace-only name")
