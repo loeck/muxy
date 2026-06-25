@@ -237,6 +237,14 @@ enum ExtensionWebBridge {
                         return send('dialog.alert', payload);
                     },
                 },
+                shortcuts: {
+                    register(opts) {
+                        const o = opts || {};
+                        return send('shortcuts.register', { id: String(o.id == null ? '' : o.id), combo: String(o.combo == null ? '' : o.combo) });
+                    },
+                    unregister(id) { return send('shortcuts.unregister', { id: String(id == null ? '' : id) }); },
+                    list() { return send('shortcuts.list', {}); },
+                },
                 modal: {
                     async open(opts) {
                         const o = opts || {};
@@ -526,6 +534,7 @@ enum ExtensionWebBridge {
             Object.freeze(muxy.panels);
             Object.freeze(muxy.popover);
             Object.freeze(muxy.dialog);
+            Object.freeze(muxy.shortcuts);
             Object.freeze(muxy.modal);
             Object.freeze(muxy.topbar);
             Object.freeze(muxy.statusbar);

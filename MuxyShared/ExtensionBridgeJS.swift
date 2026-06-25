@@ -91,6 +91,14 @@ public enum ExtensionBridgeJS {
                         return dispatch('dialog.alert', payload);
                     },
                 },
+                shortcuts: {
+                    register(opts) {
+                        const o = opts || {};
+                        return dispatch('shortcuts.register', { id: String(o.id == null ? '' : o.id), combo: String(o.combo == null ? '' : o.combo) });
+                    },
+                    unregister(id) { return dispatch('shortcuts.unregister', { id: String(id == null ? '' : id) }); },
+                    list() { return dispatch('shortcuts.list', {}); },
+                },
                 modal: {
                     open(opts) {
                         const o = opts || {};
@@ -140,6 +148,7 @@ public enum ExtensionBridgeJS {
             Object.freeze(muxy.agents);
             Object.freeze(muxy.notifications);
             Object.freeze(muxy.dialog);
+            Object.freeze(muxy.shortcuts);
             Object.freeze(muxy.modal);
             Object.freeze(muxy.topbar);
             Object.freeze(muxy.statusbar);

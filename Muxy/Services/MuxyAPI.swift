@@ -217,6 +217,9 @@ enum MuxyAPI {
             "http.fetch",
             "dialog.confirm",
             "dialog.alert",
+            "shortcuts.register",
+            "shortcuts.unregister",
+            "shortcuts.list",
             "modal.open",
             "modal.feed",
             "modal.finish",
@@ -411,6 +414,8 @@ enum MuxyAPI {
             "topbar.set": .panelsWrite,
             "statusbar.set": .panelsWrite,
             "exec": .commandsExec,
+            "shortcuts.register": .shortcutsRegister,
+            "shortcuts.unregister": .shortcutsRegister,
         ]
 
         private static let eventPermissions: [String: ExtensionPermission] = [

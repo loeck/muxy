@@ -139,6 +139,35 @@ enum MuxyAPIDispatcher {
             let request = try ExtensionDialogService.makeAlertRequest(extensionID: context.extensionID, args: args)
             try await ExtensionDialogService.alert(request)
             return NSNull()
+        case "shortcuts.register":
+            let shortcutID = try stringArg(args, "id")
+            if ExtensionStore.shared.loadedExtension(id: context.extensionID)?
+                .manifest.commands.contains(where: { $0.id == shortcutID }) == true
+            {
+                throw APIError.invalidArguments("'\(shortcutID)' is a manifest command; bind it via defaultShortcut")
+            }
+            let conflict = try ExtensionShortcutStore.shared.register(
+                extensionID: context.extensionID,
+                commandID: shortcutID,
+                combo: stringArg(args, "combo")
+            )
+            var result: [String: Any] = ["ok": conflict == nil]
+            if let conflict { result["conflict"] = conflict }
+            return result
+        case "shortcuts.unregister":
+            try ExtensionShortcutStore.shared.unregister(
+                extensionID: context.extensionID,
+                commandID: stringArg(args, "id")
+            )
+            return NSNull()
+        case "shortcuts.list":
+            return ExtensionShortcutStore.shared.shortcuts(forExtension: context.extensionID).map { shortcut in
+                [
+                    "id": shortcut.commandID,
+                    "combo": shortcut.combo.tokenString,
+                    "source": shortcut.source.rawValue,
+                ]
+            }
         case "modal.open":
             let requestID = ExtensionModalService.shared.openSession(extensionID: context.extensionID, args: args)
             return ["requestID": requestID]

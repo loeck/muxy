@@ -500,6 +500,15 @@ final class ExtensionStore {
     private func syncExtensionShortcuts() {
         let enabled = statuses.filter(\.isEnabled).map(\.muxyExtension)
         ExtensionShortcutStore.shared.syncBindings(for: enabled)
+        ExtensionShortcutStore.shared.clearRuntimeShortcuts(keepingExtensionIDs: Set(enabled.map(\.id)))
+    }
+
+    func triggerRuntimeShortcut(extensionID: String, commandID: String) {
+        broadcastCommandEvent(
+            extensionID: extensionID,
+            commandID: commandID,
+            name: "command.\(commandID)"
+        )
     }
 
     struct StatusBarUpdate {
