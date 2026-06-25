@@ -25,11 +25,11 @@ struct VCSWorktreeAutoRefresherTests {
         #expect(changes.isEmpty)
     }
 
-    @Test("a newly seen worktree branch is reported")
-    func reportsNewWorktree() {
+    @Test("a newly seen worktree does not emit on first observation")
+    func ignoresFirstObservation() {
         let id = UUID()
         let changes = VCSWorktreeAutoRefresher.headChanges(before: [:], after: [id: "main"])
-        #expect(changes == [VCSWorktreeAutoRefresher.HeadChange(worktreeID: id, branch: "main")])
+        #expect(changes.isEmpty)
     }
 
     @Test("a removed worktree does not emit a change")

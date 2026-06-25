@@ -147,6 +147,8 @@
         "agents:read",
         "git:read",
         "git:write",
+        "files:read",
+        "files:write",
         "storage:read",
         "storage:write",
         "notifications:write",

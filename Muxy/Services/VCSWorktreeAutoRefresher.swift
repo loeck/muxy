@@ -115,18 +115,20 @@ final class VCSWorktreeAutoRefresher {
     }
 
     private func broadcastHeadChanges(projectID: UUID, before: [UUID: String]) {
-        let after = worktreeStore.worktrees[projectID] ?? []
-        let afterBranches = branchSnapshot(projectID: projectID)
-        for change in Self.headChanges(before: before, after: afterBranches) {
-            let payload: [String: String] = [
-                "projectID": projectID.uuidString,
-                "worktreeID": change.worktreeID.uuidString,
-                "branch": change.branch,
-                "path": after.first { $0.id == change.worktreeID }?.path ?? "",
-            ]
+        let byID = Dictionary(
+            (worktreeStore.worktrees[projectID] ?? []).map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        for change in Self.headChanges(before: before, after: branchSnapshot(projectID: projectID)) {
+            guard let worktree = byID[change.worktreeID] else { continue }
             NotificationSocketServer.shared.broadcast(event: ExtensionEvent(
                 name: ExtensionEventName.worktreeHeadChanged,
-                payload: payload
+                payload: [
+                    "projectID": projectID.uuidString,
+                    "worktreeID": change.worktreeID.uuidString,
+                    "branch": change.branch,
+                    "path": worktree.path,
+                ]
             ))
         }
     }
@@ -138,7 +140,7 @@ final class VCSWorktreeAutoRefresher {
 
     static func headChanges(before: [UUID: String], after: [UUID: String]) -> [HeadChange] {
         after.compactMap { id, branch in
-            guard before[id] != branch else { return nil }
+            guard let previous = before[id], previous != branch else { return nil }
             return HeadChange(worktreeID: id, branch: branch)
         }
     }

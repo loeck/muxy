@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 @MainActor
@@ -85,7 +86,9 @@ enum ExtensionStorageService {
 
     private static func safeFilename(_ extensionID: String) -> String {
         let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.")
-        let sanitized = String(extensionID.unicodeScalars.map { allowed.contains($0) ? Character($0) : "_" })
-        return sanitized.isEmpty ? "_" : sanitized
+        let slug = String(extensionID.unicodeScalars.prefix(64).map { allowed.contains($0) ? Character($0) : "_" })
+        let digest = SHA256.hash(data: Data(extensionID.utf8))
+        let suffix = digest.prefix(8).map { String(format: "%02x", $0) }.joined()
+        return "\(slug.isEmpty ? "_" : slug)-\(suffix)"
     }
 }
