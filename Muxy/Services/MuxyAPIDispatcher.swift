@@ -139,6 +139,29 @@ enum MuxyAPIDispatcher {
             let request = try ExtensionDialogService.makeAlertRequest(extensionID: context.extensionID, args: args)
             try await ExtensionDialogService.alert(request)
             return NSNull()
+        case "dialog.prompt":
+            let request = try ExtensionDialogService.makePromptRequest(extensionID: context.extensionID, args: args)
+            return try await ExtensionDialogService.prompt(request) ?? NSNull()
+        case "dialog.pickFolder":
+            let request = try ExtensionDialogService.makePickFolderRequest(extensionID: context.extensionID, args: args)
+            return try await ExtensionDialogService.pickFolder(request) ?? NSNull()
+        case "storage.get":
+            return try ExtensionStorageService.get(extensionID: context.extensionID, key: stringArg(args, "key"))
+        case "storage.set":
+            guard args.keys.contains("value") else {
+                throw APIError.invalidArguments("storage.set requires a value")
+            }
+            try ExtensionStorageService.set(
+                extensionID: context.extensionID,
+                key: stringArg(args, "key"),
+                value: args["value"] ?? NSNull()
+            )
+            return NSNull()
+        case "storage.delete":
+            try ExtensionStorageService.delete(extensionID: context.extensionID, key: stringArg(args, "key"))
+            return NSNull()
+        case "storage.keys":
+            return try ExtensionStorageService.keys(extensionID: context.extensionID)
         case "modal.open":
             let requestID = ExtensionModalService.shared.openSession(extensionID: context.extensionID, args: args)
             return ["requestID": requestID]

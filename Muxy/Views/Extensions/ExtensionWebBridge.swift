@@ -236,6 +236,31 @@ enum ExtensionWebBridge {
                         if (o.style != null) payload.style = String(o.style);
                         return send('dialog.alert', payload);
                     },
+                    prompt(opts) {
+                        const o = opts || {};
+                        const payload = {};
+                        if (o.title != null) payload.title = String(o.title);
+                        if (o.message != null) payload.message = String(o.message);
+                        if (o.default != null) payload.default = String(o.default);
+                        if (o.placeholder != null) payload.placeholder = String(o.placeholder);
+                        if (o.confirm != null) payload.confirm = String(o.confirm);
+                        if (o.cancel != null) payload.cancel = String(o.cancel);
+                        return send('dialog.prompt', payload);
+                    },
+                    pickFolder(opts) {
+                        const o = opts || {};
+                        const payload = {};
+                        if (o.title != null) payload.title = String(o.title);
+                        if (o.message != null) payload.message = String(o.message);
+                        if (o.default != null) payload.default = String(o.default);
+                        return send('dialog.pickFolder', payload);
+                    },
+                },
+                storage: {
+                    get(key) { return send('storage.get', { key: String(key) }); },
+                    set(key, value) { return send('storage.set', { key: String(key), value: value === undefined ? null : value }); },
+                    delete(key) { return send('storage.delete', { key: String(key) }); },
+                    keys() { return send('storage.keys', {}); },
                 },
                 modal: {
                     async open(opts) {
@@ -526,6 +551,7 @@ enum ExtensionWebBridge {
             Object.freeze(muxy.panels);
             Object.freeze(muxy.popover);
             Object.freeze(muxy.dialog);
+            Object.freeze(muxy.storage);
             Object.freeze(muxy.modal);
             Object.freeze(muxy.topbar);
             Object.freeze(muxy.statusbar);

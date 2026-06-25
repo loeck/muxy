@@ -217,6 +217,12 @@ enum MuxyAPI {
             "http.fetch",
             "dialog.confirm",
             "dialog.alert",
+            "dialog.prompt",
+            "dialog.pickFolder",
+            "storage.get",
+            "storage.set",
+            "storage.delete",
+            "storage.keys",
             "modal.open",
             "modal.feed",
             "modal.finish",
@@ -411,12 +417,17 @@ enum MuxyAPI {
             "topbar.set": .panelsWrite,
             "statusbar.set": .panelsWrite,
             "exec": .commandsExec,
+            "storage.get": .storageRead,
+            "storage.keys": .storageRead,
+            "storage.set": .storageWrite,
+            "storage.delete": .storageWrite,
         ]
 
         private static let eventPermissions: [String: ExtensionPermission] = [
             ExtensionEventName.agentStatus: .agentsRead,
             ExtensionEventName.fileChanged: .filesRead,
             ExtensionEventName.projectsChanged: .projectsRead,
+            ExtensionEventName.worktreeHeadChanged: .worktreesRead,
         ]
     }
 

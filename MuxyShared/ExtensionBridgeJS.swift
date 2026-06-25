@@ -90,6 +90,31 @@ public enum ExtensionBridgeJS {
                         if (o.style != null) payload.style = String(o.style);
                         return dispatch('dialog.alert', payload);
                     },
+                    prompt(opts) {
+                        const o = opts || {};
+                        const payload = {};
+                        if (o.title != null) payload.title = String(o.title);
+                        if (o.message != null) payload.message = String(o.message);
+                        if (o.default != null) payload.default = String(o.default);
+                        if (o.placeholder != null) payload.placeholder = String(o.placeholder);
+                        if (o.confirm != null) payload.confirm = String(o.confirm);
+                        if (o.cancel != null) payload.cancel = String(o.cancel);
+                        return dispatch('dialog.prompt', payload);
+                    },
+                    pickFolder(opts) {
+                        const o = opts || {};
+                        const payload = {};
+                        if (o.title != null) payload.title = String(o.title);
+                        if (o.message != null) payload.message = String(o.message);
+                        if (o.default != null) payload.default = String(o.default);
+                        return dispatch('dialog.pickFolder', payload);
+                    },
+                },
+                storage: {
+                    get(key) { return dispatch('storage.get', { key: String(key) }); },
+                    set(key, value) { return dispatch('storage.set', { key: String(key), value: value === undefined ? null : value }); },
+                    delete(key) { return dispatch('storage.delete', { key: String(key) }); },
+                    keys() { return dispatch('storage.keys', {}); },
                 },
                 modal: {
                     open(opts) {
@@ -140,6 +165,7 @@ public enum ExtensionBridgeJS {
             Object.freeze(muxy.agents);
             Object.freeze(muxy.notifications);
             Object.freeze(muxy.dialog);
+            Object.freeze(muxy.storage);
             Object.freeze(muxy.modal);
             Object.freeze(muxy.topbar);
             Object.freeze(muxy.statusbar);

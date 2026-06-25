@@ -147,6 +147,8 @@
         "agents:read",
         "git:read",
         "git:write",
+        "storage:read",
+        "storage:write",
         "notifications:write",
         "panels:write",
         "commands:run-script",

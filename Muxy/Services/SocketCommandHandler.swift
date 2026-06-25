@@ -285,6 +285,26 @@ enum SocketCommandHandler {
         case "dialog.alert":
             guard parts.count >= 2 else { return "error:usage dialog.alert|<base64-json>" }
             return await handleDialogAlert(base64Payload: parts[1], extensionID: clientContext.extensionID)
+        case "dialog.prompt",
+             "dialog.pickFolder",
+             "storage.get",
+             "storage.set",
+             "storage.delete",
+             "storage.keys":
+            guard parts.count >= 2 else { return "error:usage \(cmd)|<base64-json>" }
+            guard let extensionID = clientContext.extensionID else { return "error:identify required" }
+            return await handleAPIVerb(
+                verb: cmd,
+                base64Payload: parts[1],
+                context: MuxyAPIDispatcher.Context(
+                    extensionID: extensionID,
+                    appState: appState,
+                    projectStore: projectStore,
+                    worktreeStore: worktreeStore,
+                    projectGroupStore: projectGroupStore,
+                    browserProfileStore: browserProfileStore
+                )
+            )
         case "modal.open",
              "modal.feed",
              "modal.finish",
