@@ -104,6 +104,22 @@ enum ExtensionWebBridge {
                 }
             };
 
+            const modalQueryHandlers = new Map();
+            window.__muxyDeliverModalQuery = async (requestID, queryID, query) => {
+                const key = String(requestID);
+                const handler = modalQueryHandlers.get(key);
+                const emit = (batch) => send('modal.feed', { items: normalizeModalItems(batch), queryID });
+                try {
+                    if (typeof handler === 'function') {
+                        const produced = await handler(query, emit);
+                        if (produced != null) await emit(produced);
+                    }
+                } catch (error) {
+                    console.error(error);
+                }
+                await send('modal.finish', { queryID });
+            };
+
             let beforeCloseHandler = null;
             window.__muxyResolveBeforeClose = (callID, prevent) => {
                 send('lifecycle.resolveBeforeClose', { callID: String(callID), prevent: !!prevent }).catch(() => {});
@@ -236,6 +252,31 @@ enum ExtensionWebBridge {
                         if (o.style != null) payload.style = String(o.style);
                         return send('dialog.alert', payload);
                     },
+                    prompt(opts) {
+                        const o = opts || {};
+                        const payload = {};
+                        if (o.title != null) payload.title = String(o.title);
+                        if (o.message != null) payload.message = String(o.message);
+                        if (o.default != null) payload.default = String(o.default);
+                        if (o.placeholder != null) payload.placeholder = String(o.placeholder);
+                        if (o.confirm != null) payload.confirm = String(o.confirm);
+                        if (o.cancel != null) payload.cancel = String(o.cancel);
+                        return send('dialog.prompt', payload);
+                    },
+                    pickFolder(opts) {
+                        const o = opts || {};
+                        const payload = {};
+                        if (o.title != null) payload.title = String(o.title);
+                        if (o.message != null) payload.message = String(o.message);
+                        if (o.default != null) payload.default = String(o.default);
+                        return send('dialog.pickFolder', payload);
+                    },
+                },
+                storage: {
+                    get(key) { return send('storage.get', { key: String(key) }); },
+                    set(key, value) { return send('storage.set', { key: String(key), value: value === undefined ? null : value }); },
+                    delete(key) { return send('storage.delete', { key: String(key) }); },
+                    keys() { return send('storage.keys', {}); },
                 },
                 shortcuts: {
                     register(opts) {
@@ -248,19 +289,28 @@ enum ExtensionWebBridge {
                 modal: {
                     async open(opts) {
                         const o = opts || {};
-                        const opened = await send('modal.open', modalLabels(o));
+                        const labels = modalLabels(o);
+                        if (typeof o.onQuery === 'function') labels.dynamic = true;
+                        const opened = await send('modal.open', labels);
                         const requestID = opened && opened.requestID;
-                        const emit = (batch) => send('modal.feed', { items: normalizeModalItems(batch) });
-                        if (typeof o.items === 'function') {
-                            const produced = await o.items(emit);
-                            if (produced != null) await emit(produced);
-                        } else {
-                            await emit(o.items);
+                        if (requestID != null && typeof o.onQuery === 'function') {
+                            modalQueryHandlers.set(String(requestID), o.onQuery);
                         }
-                        await send('modal.finish', {});
-                        const choice = await send('modal.await', { requestID });
-                        if (typeof o.onSelect === 'function') o.onSelect(choice);
-                        return choice;
+                        const emit = (batch) => send('modal.feed', { items: normalizeModalItems(batch) });
+                        try {
+                            if (typeof o.items === 'function') {
+                                const produced = await o.items(emit);
+                                if (produced != null) await emit(produced);
+                            } else {
+                                await emit(o.items);
+                            }
+                            await send('modal.finish', {});
+                            const choice = await send('modal.await', { requestID });
+                            if (typeof o.onSelect === 'function') o.onSelect(choice);
+                            return choice;
+                        } finally {
+                            if (requestID != null) modalQueryHandlers.delete(String(requestID));
+                        }
                     },
                 },
                 topbar: {
@@ -535,6 +585,7 @@ enum ExtensionWebBridge {
             Object.freeze(muxy.popover);
             Object.freeze(muxy.dialog);
             Object.freeze(muxy.shortcuts);
+            Object.freeze(muxy.storage);
             Object.freeze(muxy.modal);
             Object.freeze(muxy.topbar);
             Object.freeze(muxy.statusbar);

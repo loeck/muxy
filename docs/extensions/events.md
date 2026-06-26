@@ -69,6 +69,7 @@ When an extension is reloaded or disabled, its subscriptions are dropped and re-
 | `project.switched` | `projectID` | `events: ["project.switched"]` |
 | `projects.changed` | _(none)_ | `events: ["projects.changed"]` + `projects:read` |
 | `worktree.switched` | `projectID`, `worktreeID` | `events: ["worktree.switched"]` |
+| `worktree.headChanged` | `projectID`, `worktreeID`, `branch`, `path` | `events: ["worktree.headChanged"]` + `worktrees:read` |
 | `notification.posted` | `paneID`, `projectID`, `worktreeID`, `worktreePath`, `tabID`, `source`, `title`, `body` | `events: ["notification.posted"]` |
 | `agent.status` | `worktreeID`, `projectID`, `paneID`, `providerID`, `status` | `events: ["agent.status"]` + `agents:read` |
 | `file.changed` | `path`, `projectPath` | `events: ["file.changed"]` + `files:read` |
@@ -92,6 +93,8 @@ Which states a provider reports depends on the hooks its CLI exposes:
 | Codex (`codex`) | — | — | ✓ |
 
 A `—` means the CLI's hooks have no event for that transition, so the provider never emits that state.
+
+`worktree.headChanged` fires when a worktree's checked-out branch changes — e.g. a `git checkout` in a terminal — detected by watching `.git/HEAD` (no polling). The payload carries the new `branch` and the worktree `path`. Pair it with [`muxy.git.worktrees()`](git.md) to refresh a worktree tree reactively instead of polling.
 
 `file.changed` fires for files under the active project/worktree root. It is debounced (~0.3s) and skips Git-internal noise (`.git/` lock files and directories); one event is delivered per changed `path`, with `projectPath` set to the watched root. Pair it with [`muxy.files`](files.md) to build a reactive file tree.
 

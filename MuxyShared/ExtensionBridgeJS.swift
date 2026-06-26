@@ -38,12 +38,24 @@ public enum ExtensionBridgeJS {
                 dispatch('modal.finish', {});
             };
             const modalResultHandlers = {};
+            const modalQueryHandlers = {};
             this.__muxiDeliverModalResult = (requestID, item) => {
                 const handler = modalResultHandlers[requestID];
                 delete modalResultHandlers[requestID];
+                delete modalQueryHandlers[requestID];
                 if (typeof handler === 'function') {
                     try { handler(item == null ? null : item); } catch (error) { console.error(error); }
                 }
+            };
+            this.__muxyDeliverModalQuery = (requestID, queryID, query) => {
+                const handler = modalQueryHandlers[requestID];
+                const emit = (batch) => dispatch('modal.feed', { items: normalizeModalItems(batch), queryID });
+                const finish = () => dispatch('modal.finish', { queryID });
+                if (typeof handler !== 'function') { finish(); return; }
+                let produced;
+                try { produced = handler(query, emit); } catch (error) { console.error(error); finish(); return; }
+                if (produced != null) emit(produced);
+                finish();
             };
             const muxy = {
                 extensionID: \(extLiteral),
@@ -90,6 +102,31 @@ public enum ExtensionBridgeJS {
                         if (o.style != null) payload.style = String(o.style);
                         return dispatch('dialog.alert', payload);
                     },
+                    prompt(opts) {
+                        const o = opts || {};
+                        const payload = {};
+                        if (o.title != null) payload.title = String(o.title);
+                        if (o.message != null) payload.message = String(o.message);
+                        if (o.default != null) payload.default = String(o.default);
+                        if (o.placeholder != null) payload.placeholder = String(o.placeholder);
+                        if (o.confirm != null) payload.confirm = String(o.confirm);
+                        if (o.cancel != null) payload.cancel = String(o.cancel);
+                        return dispatch('dialog.prompt', payload);
+                    },
+                    pickFolder(opts) {
+                        const o = opts || {};
+                        const payload = {};
+                        if (o.title != null) payload.title = String(o.title);
+                        if (o.message != null) payload.message = String(o.message);
+                        if (o.default != null) payload.default = String(o.default);
+                        return dispatch('dialog.pickFolder', payload);
+                    },
+                },
+                storage: {
+                    get(key) { return dispatch('storage.get', { key: String(key) }); },
+                    set(key, value) { return dispatch('storage.set', { key: String(key), value: value === undefined ? null : value }); },
+                    delete(key) { return dispatch('storage.delete', { key: String(key) }); },
+                    keys() { return dispatch('storage.keys', {}); },
                 },
                 shortcuts: {
                     register(opts) {
@@ -102,9 +139,14 @@ public enum ExtensionBridgeJS {
                 modal: {
                     open(opts) {
                         const o = opts || {};
-                        const opened = dispatch('modal.open', modalLabels(o));
+                        const labels = modalLabels(o);
+                        if (typeof o.onQuery === 'function') labels.dynamic = true;
+                        const opened = dispatch('modal.open', labels);
                         const requestID = opened && opened.requestID;
-                        if (typeof o.onSelect === 'function' && requestID != null) modalResultHandlers[requestID] = o.onSelect;
+                        if (requestID != null) {
+                            if (typeof o.onSelect === 'function') modalResultHandlers[requestID] = o.onSelect;
+                            if (typeof o.onQuery === 'function') modalQueryHandlers[requestID] = o.onQuery;
+                        }
                         feedModalItems(o);
                         return requestID;
                     },
@@ -149,6 +191,7 @@ public enum ExtensionBridgeJS {
             Object.freeze(muxy.notifications);
             Object.freeze(muxy.dialog);
             Object.freeze(muxy.shortcuts);
+            Object.freeze(muxy.storage);
             Object.freeze(muxy.modal);
             Object.freeze(muxy.topbar);
             Object.freeze(muxy.statusbar);

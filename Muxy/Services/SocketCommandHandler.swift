@@ -189,7 +189,9 @@ enum SocketCommandHandler {
                     request,
                     appState: appState,
                     callingExtensionID: clientContext.extensionID
-                ), ok: "ok")
+                )) { tabID in
+                    tabID.uuidString
+                }
             } catch {
                 return "error:invalid open-tab payload: \(error.localizedDescription)"
             }
@@ -285,7 +287,13 @@ enum SocketCommandHandler {
         case "dialog.alert":
             guard parts.count >= 2 else { return "error:usage dialog.alert|<base64-json>" }
             return await handleDialogAlert(base64Payload: parts[1], extensionID: clientContext.extensionID)
-        case "shortcuts.register",
+        case "dialog.prompt",
+             "dialog.pickFolder",
+             "storage.get",
+             "storage.set",
+             "storage.delete",
+             "storage.keys",
+             "shortcuts.register",
              "shortcuts.unregister",
              "shortcuts.list":
             guard parts.count >= 2 else { return "error:usage \(cmd)|<base64-json>" }
@@ -451,6 +459,7 @@ enum SocketCommandHandler {
             let result = try await MuxyAPIDispatcher.dispatch(verb: verb, args: args, context: context)
             if verb == "modal.open", let dict = result as? [String: Any], let requestID = dict["requestID"] as? String {
                 registerModalResultPush(requestID: requestID, extensionID: context.extensionID)
+                registerModalQueryPush(requestID: requestID, extensionID: context.extensionID)
             }
             return encodeJSONFragment(result)
         } catch {
@@ -466,6 +475,17 @@ enum SocketCommandHandler {
                 extensionID: extensionID,
                 requestID: requestID,
                 payload: data
+            )
+        }
+    }
+
+    private static func registerModalQueryPush(requestID: String, extensionID: String) {
+        ExtensionModalService.shared.onQueryRequest(requestID: requestID) { queryID, query in
+            NotificationSocketServer.shared.pushModalQuery(
+                extensionID: extensionID,
+                requestID: requestID,
+                queryID: queryID,
+                query: query
             )
         }
     }
