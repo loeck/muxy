@@ -40,6 +40,8 @@ final class ExtensionShortcutStore {
     private(set) var runtimeShortcuts: [ExtensionShortcut] = []
     private let persistence: any ExtensionShortcutPersisting
 
+    private var allShortcuts: [ExtensionShortcut] { shortcuts + runtimeShortcuts }
+
     init(persistence: any ExtensionShortcutPersisting = FileExtensionShortcutPersistence()) {
         self.persistence = persistence
         load()
@@ -50,7 +52,7 @@ final class ExtensionShortcutStore {
     }
 
     func shortcuts(forExtension extensionID: String) -> [ExtensionShortcut] {
-        (shortcuts + runtimeShortcuts).filter { $0.extensionID == extensionID }
+        allShortcuts.filter { $0.extensionID == extensionID }
     }
 
     @discardableResult
@@ -108,11 +110,12 @@ final class ExtensionShortcutStore {
             keyCode: event.keyCode
         )
         let flags = event.modifierFlags.intersection(KeyCombo.supportedModifierMask).rawValue
-        return (shortcuts + runtimeShortcuts).first { shortcut in
+        let isMatch: (ExtensionShortcut) -> Bool = { shortcut in
             shortcut.combo.isAssigned
                 && shortcut.combo.key == normalizedKey
                 && shortcut.combo.modifiers == flags
         }
+        return shortcuts.first(where: isMatch) ?? runtimeShortcuts.first(where: isMatch)
     }
 
     func isRegisteredShortcut(event: NSEvent, scopes: Set<ShortcutScope>) -> Bool {
@@ -127,7 +130,7 @@ final class ExtensionShortcutStore {
         if CommandShortcutStore.shared.conflictingShortcut(for: combo, excluding: UUID()) != nil {
             return "Conflicts with a custom command"
         }
-        let conflictsWithOther = (shortcuts + runtimeShortcuts).contains {
+        let conflictsWithOther = allShortcuts.contains {
             $0.combo == combo && !($0.extensionID == extensionID && $0.commandID == commandID)
         }
         return conflictsWithOther ? "Conflicts with another extension shortcut" : nil
@@ -185,7 +188,7 @@ final class ExtensionShortcutStore {
         guard CommandShortcutStore.shared.conflictingShortcut(for: combo, excluding: UUID()) == nil else {
             return false
         }
-        return !(shortcuts + runtimeShortcuts).contains {
+        return !allShortcuts.contains {
             $0.combo == combo && !($0.extensionID == extensionID && $0.commandID == commandID)
         }
     }

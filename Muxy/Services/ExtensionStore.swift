@@ -365,14 +365,21 @@ final class ExtensionStore {
         for status in statuses where status.isEnabled {
             let manifest = status.muxyExtension.manifest
             guard let token = tokens[status.id] else { continue }
+            let runtimeCommandEvents = ExtensionShortcutStore.shared.runtimeShortcuts
+                .filter { $0.extensionID == status.id }
+                .map(\.eventName)
             entries[status.id] = NotificationSocketServer.ExtensionSnapshotEntry(
                 allowedEvents: Set(manifest.events),
-                commandEvents: Set(manifest.commands.map(\.eventName)),
+                commandEvents: Set(manifest.commands.map(\.eventName)).union(runtimeCommandEvents),
                 permissions: Set(manifest.permissions),
                 token: token
             )
         }
         return NotificationSocketServer.ExtensionSnapshot(entries: entries)
+    }
+
+    func refreshExtensionSnapshot() {
+        publishSnapshotSync()
     }
 
     private func publishSnapshot() {
@@ -559,7 +566,7 @@ final class ExtensionStore {
         broadcastCommandEvent(
             extensionID: extensionID,
             commandID: commandID,
-            name: "command.\(commandID)"
+            name: ExtensionShortcut.eventName(forCommandID: commandID)
         )
     }
 

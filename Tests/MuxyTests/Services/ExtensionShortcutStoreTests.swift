@@ -101,6 +101,14 @@ struct ExtensionShortcutStoreTests {
         #expect(runtime?.combo == KeyCombo(key: "b", shift: true, control: true, option: true))
     }
 
+    @Test("a runtime shortcut's event name follows the command.<id> convention")
+    func runtimeShortcutEventName() throws {
+        let store = ExtensionShortcutStore(persistence: InMemoryExtensionShortcutPersistence())
+        _ = try store.register(extensionID: "alpha", commandID: "toggle", combo: "ctrl+opt+shift+b")
+        let shortcut = try #require(store.runtimeShortcuts.first)
+        #expect(shortcut.eventName == "command.toggle")
+    }
+
     @Test("register rejects an invalid combo")
     func registerRejectsInvalidCombo() {
         let store = ExtensionShortcutStore(persistence: InMemoryExtensionShortcutPersistence())

@@ -151,6 +151,7 @@ enum MuxyAPIDispatcher {
                 commandID: shortcutID,
                 combo: stringArg(args, "combo")
             )
+            ExtensionStore.shared.refreshExtensionSnapshot()
             var result: [String: Any] = ["ok": conflict == nil]
             if let conflict { result["conflict"] = conflict }
             return result
@@ -159,6 +160,7 @@ enum MuxyAPIDispatcher {
                 extensionID: context.extensionID,
                 commandID: stringArg(args, "id")
             )
+            ExtensionStore.shared.refreshExtensionSnapshot()
             return NSNull()
         case "shortcuts.list":
             return ExtensionShortcutStore.shared.shortcuts(forExtension: context.extensionID).map { shortcut in

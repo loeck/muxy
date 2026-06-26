@@ -13,6 +13,12 @@ struct ExtensionShortcut: Codable, Identifiable, Equatable {
 
     var id: String { "\(extensionID):\(commandID)" }
 
+    var eventName: String { Self.eventName(forCommandID: commandID) }
+
+    static func eventName(forCommandID commandID: String) -> String {
+        "command.\(commandID)"
+    }
+
     init(extensionID: String, commandID: String, combo: KeyCombo, source: Source = .manifest) {
         self.extensionID = extensionID
         self.commandID = commandID
